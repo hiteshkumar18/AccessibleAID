@@ -3,58 +3,80 @@
 @tailwind utilities;
 
 /* ============================================================
-   Base accessibility styles
+   Lumyn — Privacy-first Accessibility + Emergency Intelligence
+   Global styles, design tokens, and accessibility utilities
    ============================================================ */
+
 :root {
-  --focus-ring: #1a56db;
+  --focus-ring: #3B82F6;
+  --lumyn-blue: #3B82F6;
+  --lumyn-teal: #14B8A6;
+  --lumyn-emerald: #10B981;
+  --lumyn-slate: #0F172A;
+  --lumyn-muted: #475569;
+  --lumyn-light: #F8FAFC;
+  --privacy-green: #10B981;
+  --emergency-red: #EF4444;
+  --emergency-amber: #F59E0B;
 }
 
 html {
   font-size: 18px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  background-color: #f9fafb;
-  color: #111928;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--lumyn-light);
+  color: var(--lumyn-slate);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
 }
 
-/* High-contrast mode is toggled via .a11y-contrast on <html> */
-html.a11y-contrast {
-  background-color: #000;
-  color: #fff;
-}
-html.a11y-contrast body {
-  background-color: #000;
-  color: #fff;
-}
-html.a11y-contrast .surface,
-html.a11y-contrast .bg-surface {
-  background-color: #111 !important;
-  color: #fff !important;
-  border-color: #fff !important;
-}
-html.a11y-contrast .text-ink {
-  color: #fff !important;
-}
-html.a11y-contrast .text-gray-500,
-html.a11y-contrast .text-gray-600,
-html.a11y-contrast .text-gray-700 {
-  color: #e5e7eb !important;
-}
-
-/* Visible focus ring on every focusable element */
+/* ============================================================
+   Focus rings — visible, accessible, beautiful
+   ============================================================ */
 :where(button, a, input, textarea, select, [tabindex]):focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* Visually hidden but available to screen readers */
+/* ============================================================
+   Skip link for keyboard navigation
+   ============================================================ */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--lumyn-blue);
+  color: white;
+  border-radius: 0 0 0.5rem 0.5rem;
+  font-weight: 600;
+  z-index: 100;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* ============================================================
+   Touch targets — 48px minimum per WCAG 2.5.5
+   ============================================================ */
+.tap-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* ============================================================
+   Screen reader only
+   ============================================================ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -67,13 +89,146 @@ html.a11y-contrast .text-gray-700 {
   border: 0;
 }
 
-/* Touch-target helper */
-.tap-target {
-  min-height: 48px;
-  min-width: 48px;
+/* ============================================================
+   High contrast mode (toggled via .a11y-contrast on <html>)
+   ============================================================ */
+html.a11y-contrast {
+  background-color: #000;
+  color: #fff;
+}
+html.a11y-contrast body {
+  background-color: #000;
+  color: #fff;
+}
+html.a11y-contrast .bg-white\/60,
+html.a11y-contrast .bg-white\/80 {
+  background-color: #111 !important;
+  border-color: #fff !important;
 }
 
-/* Skeleton pulse */
+/* ============================================================
+   Font scale (driven by user preference via data attribute)
+   ============================================================ */
+html[data-font-scale="1"]    { font-size: 18px; }
+html[data-font-scale="1.1"]  { font-size: 19.8px; }
+html[data-font-scale="1.25"] { font-size: 22.5px; }
+html[data-font-scale="1.5"]  { font-size: 27px; }
+
+/* ============================================================
+   Reduced motion — respect prefers-reduced-motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ============================================================
+   Voice-only mode
+   ============================================================ */
+html.a11y-voice-only img:not([data-essential]),
+html.a11y-voice-only svg:not([data-essential]) {
+  filter: grayscale(1) contrast(1.1);
+}
+html.a11y-voice-only h1,
+html.a11y-voice-only h2 {
+  font-size: 1.6em !important;
+}
+
+/* ============================================================
+   Lumyn glassmorphism utility classes
+   ============================================================ */
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-emergency {
+  background: rgba(239, 68, 68, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* ============================================================
+   Privacy indicator badges
+   ============================================================ */
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.privacy-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  animation: privacy-pulse 2s ease-in-out infinite;
+}
+
+@keyframes privacy-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.3); }
+}
+
+.privacy-badge-offline {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563EB;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.privacy-badge-offline::before {
+  background: #3B82F6;
+}
+
+/* ============================================================
+   Camera AR overlay
+   ============================================================ */
+.camera-grid {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.15) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.camera-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(34, 211, 238, 0.8);
+  border-style: solid;
+}
+.camera-corner-tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+.camera-corner-tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+.camera-corner-bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+.camera-corner-br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+/* ============================================================
+   Skeleton loading pulse
+   ============================================================ */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -87,38 +242,54 @@ html.a11y-contrast .text-gray-700 {
 }
 
 @keyframes skeleton-loading {
-  0% { background-position: 100% 50%; }
+  0%   { background-position: 100% 50%; }
   100% { background-position: 0 50%; }
 }
 
-/* Body / output text scaling helpers driven by user preference */
-html[data-font-scale="1"]   { font-size: 18px; }
-html[data-font-scale="1.1"] { font-size: 19.8px; }
-html[data-font-scale="1.25"]{ font-size: 22.5px; }
-html[data-font-scale="1.5"] { font-size: 27px; }
-
-/* Make sure motion-sensitive users don't get hit with animations */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
+/* ============================================================
+   Emergency pulse ring
+   ============================================================ */
+.emergency-ring {
+  animation: emergency-ring 1s ease-in-out infinite;
 }
 
-/* Voice-only mode: hides decorative illustrations and inflates headings so
-   blind users running with the app on a phone in their pocket can confirm
-   what's on screen by glance, but the visual UI is no longer the focus. */
-html.a11y-voice-only img:not([data-essential]),
-html.a11y-voice-only svg:not([data-essential]) {
-  filter: grayscale(1) contrast(1.1);
+@keyframes emergency-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70%  { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
-html.a11y-voice-only h1,
-html.a11y-voice-only h2 {
-  font-size: 1.6em !important;
+
+/* ============================================================
+   Hazard overlay bounding boxes (AR-style)
+   ============================================================ */
+.hazard-box-critical { border: 2px solid rgba(239, 68, 68, 0.9); }
+.hazard-box-high     { border: 2px solid rgba(249, 115, 22, 0.9); }
+.hazard-box-medium   { border: 2px solid rgba(234, 179, 8, 0.9);  }
+
+/* ============================================================
+   Bottom navigation safe area for iOS
+   ============================================================ */
+.bottom-nav {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
-html.a11y-voice-only [aria-hidden="true"] {
-  /* Decorative emoji are noise in voice-only mode. */
-  opacity: 0.35;
+
+/* ============================================================
+   Scrollbar hiding for mobile scroll areas
+   ============================================================ */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   Lumyn cinematic text gradient
+   ============================================================ */
+.text-lumyn-gradient {
+  background: linear-gradient(135deg, #3B82F6, #14B8A6, #10B981);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

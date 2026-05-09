@@ -1,9 +1,9 @@
 {
-  "name": "accessibleaid",
+  "name": "lumyn",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "On-device AI accessibility assistant that works fully offline.",
+  "description": "Lumyn — Privacy-first accessibility and emergency intelligence. Fully on-device AI.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,8 +11,11 @@
   },
   "dependencies": {
     "@huggingface/transformers": "3.0.2",
+    "lucide-react": "^0.487.0",
+    "motion": "^12.23.24",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",
