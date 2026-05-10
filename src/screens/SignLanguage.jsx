@@ -1,47 +1,104 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Camera, Volume2, Hand, Type, RefreshCw, X } from 'lucide-react';
+import {
+  ArrowLeft, Camera, Volume2, Hand, Type, RefreshCw, X, Sparkles,
+} from 'lucide-react';
 import { useCamera } from '../hooks/useCamera.js';
 import { useSpeech } from '../hooks/useSpeech.js';
+import { useSignLanguage } from '../hooks/useSignLanguage.js';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
 
-// ASL finger-spell alphabet for typing to sign demo
+// Phrases shown in "Learn" mode. The recognizer (in useSignLanguage)
+// emits a {phrase, sign, description} object that lines up with these
+// cards so detected gestures highlight the matching learn-mode tile.
 const ASL_PHRASES = [
-  { phrase: 'Hello', sign: '👋', description: 'Open hand wave' },
-  { phrase: 'Thank you', sign: '🤲', description: 'Flat hand from chin forward' },
-  { phrase: 'Help', sign: '✊', description: 'Fist on palm, lift up' },
-  { phrase: 'Please', sign: '🖐️', description: 'Circular motion on chest' },
-  { phrase: 'Yes', sign: '✊', description: 'Fist nod up and down' },
-  { phrase: 'No', sign: '🤞', description: 'Index and middle fingers tap thumb' },
-  { phrase: 'Stop', sign: '✋', description: 'Flat hand, karate chop motion' },
-  { phrase: 'Emergency', sign: '🆘', description: 'E hand-shape shaken' },
+  { phrase: 'Hello',     sign: '👋',  description: 'Open hand wave' },
+  { phrase: 'Thank you', sign: '🤟',  description: '“I love you” / thanks' },
+  { phrase: 'Help',      sign: '🖖',  description: 'Help / L — thumb + index out' },
+  { phrase: 'Please',    sign: '✌️', description: 'Two-finger victory' },
+  { phrase: 'Yes',       sign: '👍',  description: 'Thumbs up — affirmative' },
+  { phrase: 'No',        sign: '👎',  description: 'Thumbs down — negative' },
+  { phrase: 'Stop',      sign: '☝️',  description: 'Pointing up — attention' },
+  { phrase: 'Emergency', sign: '🆘',  description: 'E hand-shape shaken' },
 ];
+
+// Display window for a recognised gesture in milliseconds — short
+// enough that fast signing still updates the banner, long enough that
+// transient mis-detections don't flicker on screen.
+const RESULT_DEBOUNCE_MS = 700;
 
 export default function SignLanguage() {
   const navigate = useNavigate();
-  const { videoRef, start, stop, active } = useCamera({ facingMode: 'user' });
+  const { videoRef, start: startCamera, stop: stopCamera, active } =
+    useCamera({ facingMode: 'user' });
   const { speak } = useSpeech();
   const [mode, setMode] = useState('translate'); // 'translate' | 'learn'
   const [textInput, setTextInput] = useState('');
   const [selectedPhrase, setSelectedPhrase] = useState(null);
-  const [detecting, setDetecting] = useState(false);
-  const [detectedSign, setDetectedSign] = useState(null);
+  const [stableSign, setStableSign] = useState(null);
+  const [lastSpoken, setLastSpoken] = useState(null);
+
+  // Real recognizer (MediaPipe Tasks). It maintains its own RAF loop
+  // and pushes each detection into `onResult`; repeated phrases pass
+  // through unchanged so the visible banner stays steady.
+  const onResult = (r) => {
+    setStableSign((prev) => {
+      // Same phrase as before? pass through unchanged so the debounce
+      // timer keeps the banner steady.
+      if (prev?.phrase === r.phrase) return prev;
+      return { ...r, observedAt: performance.now() };
+    });
+  };
+  const {
+    start: startRecognizer,
+    stop: stopRecognizer,
+    bind: bindVideo,
+    ready, loading, error: signError,
+  } = useSignLanguage({ onResult });
+
+  // Wire the camera's <video ref={videoRef}> through to MediaPipe so the
+  // recognizer reads from the same MediaStream the user already granted.
+  const setVideoNode = useCallback((node) => {
+    videoRef.current = node;
+    bindVideo(node);
+  }, [bindVideo, videoRef]);
+
+  // Speak a detected phrase at most once per RESULT_DEBOUNCE_MS, and
+  // only when the recognizer's confidence is high enough for it to
+  // actually be useful.
+  useEffect(() => {
+    if (!stableSign) return;
+    if (stableSign.score && stableSign.score < 0.55) return;
+    if (lastSpoken === stableSign.phrase &&
+        performance.now() - (stableSign.observedAt || 0) < RESULT_DEBOUNCE_MS) {
+      return;
+    }
+    speak(`Detected: ${stableSign.phrase}`);
+    setLastSpoken(stableSign.phrase);
+  }, [stableSign, lastSpoken, speak]);
 
   const handleStartDetection = async () => {
-    await start();
-    setDetecting(true);
-    // Simulate sign detection with real camera (actual model would be MediaPipe Hands)
-    setTimeout(() => {
-      const random = ASL_PHRASES[Math.floor(Math.random() * ASL_PHRASES.length)];
-      setDetectedSign(random);
-      speak(`Detected: ${random.phrase}`);
-      setDetecting(false);
-    }, 2500);
+    const ok = await startCamera();
+    if (!ok) return;
+    try {
+      await startRecognizer();
+    } catch (_) {
+      // error surfaces via signError
+    }
+  };
+
+  const handleStop = () => {
+    stopRecognizer();
+    stopCamera();
+    setStableSign(null);
+    setLastSpoken(null);
   };
 
   const handleTextToSign = () => {
-    const phrase = ASL_PHRASES.find((p) => p.phrase.toLowerCase() === textInput.toLowerCase());
+    const phrase = ASL_PHRASES.find(
+      (p) => p.phrase.toLowerCase() === textInput.toLowerCase()
+    );
     if (phrase) {
       setSelectedPhrase(phrase);
       speak(`Sign for ${phrase.phrase}: ${phrase.description}`);
@@ -53,7 +110,7 @@ export default function SignLanguage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-white via-[#EFF6FF] to-[#F0FDFA] px-6 pt-14 pb-6 rounded-b-[2rem] shadow-lg">
         <div className="flex items-center gap-4 mb-5">
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => { stop(); navigate('/home'); }} className="w-12 h-12 bg-white/80 rounded-2xl flex items-center justify-center shadow-md border border-[#0F172A]/5">
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => { handleStop(); navigate('/home'); }} className="w-12 h-12 bg-white/80 rounded-2xl flex items-center justify-center shadow-md border border-[#0F172A]/5">
             <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
           </motion.button>
           <div>
@@ -81,6 +138,19 @@ export default function SignLanguage() {
       <div className="px-6 mt-6 space-y-4">
         {mode === 'translate' && (
           <>
+            <video
+              ref={setVideoNode}
+              playsInline
+              muted
+              autoPlay
+              aria-hidden={!active}
+              className={
+                active
+                  ? 'fixed inset-0 z-50 w-full h-full object-cover scale-x-[-1] bg-black'
+                  : 'sr-only'
+              }
+            />
+
             {/* Full-screen camera when active */}
             <AnimatePresence>
               {active && (
@@ -89,51 +159,76 @@ export default function SignLanguage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 bg-black flex flex-col"
+                  className="fixed inset-0 z-[51] flex flex-col pointer-events-none"
                 >
-                  <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
                   <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
 
                   {/* Top bar */}
-                  <div className="relative z-10 flex items-center justify-between px-5 pt-12">
-                    <button onClick={stop} className="w-11 h-11 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
+                  <div className="relative z-10 flex items-center justify-between px-5 pt-12 pointer-events-auto">
+                    <button onClick={handleStop} className="w-11 h-11 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
                       <X className="w-5 h-5 text-white" />
                     </button>
                     <div className="bg-black/50 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20">
-                      <span className="text-white/80 text-sm font-medium">Position your hand in frame</span>
+                      <span className="text-white/80 text-sm font-medium">
+                        {loading
+                          ? 'Loading recognizer…'
+                          : ready
+                          ? 'Hold a sign in frame'
+                          : 'Position your hand in frame'}
+                      </span>
                     </div>
                     <div className="w-11" />
                   </div>
 
-                  {/* Detecting overlay */}
-                  {detecting && (
+                  {/* Loading overlay (cold model load) */}
+                  {loading && (
                     <div className="absolute inset-0 flex items-center justify-center z-20">
                       <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
                         className="bg-black/70 backdrop-blur-xl rounded-2xl px-6 py-4 flex items-center gap-3 border border-white/20">
                         <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
-                        <span className="text-white font-medium">Detecting sign…</span>
+                        <span className="text-white font-medium">Loading MediaPipe gesture model…</span>
                       </motion.div>
                     </div>
                   )}
 
-                  {/* Result banner */}
-                  {detectedSign && (
-                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                      className="absolute bottom-32 left-4 right-4 z-20 bg-gradient-to-r from-[#10B981]/90 to-[#14B8A6]/90 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+                  {/* Live result banner */}
+                  {stableSign && (
+                    <motion.div
+                      key={stableSign.phrase}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="absolute bottom-32 left-4 right-4 z-20 bg-gradient-to-r from-[#10B981]/90 to-[#14B8A6]/90 backdrop-blur-xl rounded-2xl p-4 border border-white/20"
+                    >
                       <div className="flex items-center gap-4">
-                        <span className="text-5xl">{detectedSign.sign}</span>
-                        <div>
-                          <p className="text-white font-bold text-lg">{detectedSign.phrase}</p>
-                          <p className="text-white/80 text-sm">{detectedSign.description}</p>
+                        <span className="text-5xl">{stableSign.sign}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-bold text-lg">{stableSign.phrase}</p>
+                          <p className="text-white/80 text-sm truncate">{stableSign.description}</p>
                         </div>
+                        {typeof stableSign.score === 'number' && (
+                          <div className="text-right">
+                            <p className="text-white/90 text-xs">confidence</p>
+                            <p className="text-white font-bold text-lg leading-none">
+                              {Math.round(stableSign.score * 100)}%
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
 
-                  {/* Capture button */}
-                  <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-10">
-                    <button onClick={handleStartDetection} disabled={detecting}
-                      className="w-20 h-20 rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-2xl disabled:opacity-50">
+                  {/* Live "still detecting" indicator when no sign is stable */}
+                  {!stableSign && ready && (
+                    <div className="absolute bottom-32 left-4 right-4 z-20 bg-black/50 backdrop-blur-xl rounded-2xl px-5 py-3 border border-white/15 flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-cyan-300" />
+                      <span className="text-white/80 text-sm">Listening for a sign…</span>
+                    </div>
+                  )}
+
+                  {/* Stop button */}
+                  <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-10 pointer-events-auto">
+                    <button onClick={handleStop}
+                      className="w-20 h-20 rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-2xl">
                       <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#10B981] to-[#14B8A6] flex items-center justify-center">
                         <Hand className="w-7 h-7 text-white" />
                       </div>
@@ -143,31 +238,45 @@ export default function SignLanguage() {
               )}
             </AnimatePresence>
 
-            {/* Hidden video ref when overlay not shown */}
-            {!active && <video ref={videoRef} playsInline muted className="sr-only" aria-hidden="true" />}
-
-            {/* Compact trigger */}
-            {detectedSign && (
+            {/* Compact result trigger — shown after exiting the camera */}
+            {!active && stableSign && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="flex items-center gap-3 p-4 bg-gradient-to-r from-[#10B981]/10 to-[#14B8A6]/10 rounded-2xl border border-[#10B981]/20">
-                <span className="text-5xl">{detectedSign.sign}</span>
-                <div>
-                  <p className="font-bold text-[#0F172A]">{detectedSign.phrase}</p>
-                  <p className="text-[#475569] text-sm">{detectedSign.description}</p>
+                <span className="text-5xl">{stableSign.sign}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[#0F172A]">{stableSign.phrase}</p>
+                  <p className="text-[#475569] text-sm">{stableSign.description}</p>
                 </div>
-                <button onClick={() => speak(detectedSign.description)} className="ml-auto">
+                <button onClick={() => speak(stableSign.description)} className="ml-auto">
                   <Volume2 className="w-5 h-5 text-[#3B82F6]" />
                 </button>
               </motion.div>
             )}
 
+            {/* Error from the recognizer (cold load failure, etc.) */}
+            {signError && (
+              <div className="bg-red-50 text-red-700 text-sm rounded-2xl p-4 border border-red-200">
+                {signError}
+              </div>
+            )}
+
             <button
-              onClick={handleStartDetection}
-              disabled={detecting}
+              onClick={active ? handleStop : handleStartDetection}
+              disabled={loading}
               className="w-full py-4 bg-gradient-to-r from-[#10B981] to-[#14B8A6] text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {detecting ? <><RefreshCw className="w-5 h-5 animate-spin" />Detecting…</> : <><Camera className="w-5 h-5" />{detectedSign ? 'Detect Again' : 'Open Camera to Detect'}</>}
+              {loading ? (
+                <><RefreshCw className="w-5 h-5 animate-spin" />Loading model…</>
+              ) : active ? (
+                <><X className="w-5 h-5" />Stop translating</>
+              ) : (
+                <><Camera className="w-5 h-5" />{stableSign ? 'Translate Again' : 'Open Camera to Translate'}</>
+              )}
             </button>
+
+            <p className="text-xs text-[#64748B] text-center">
+              Powered by MediaPipe Tasks · runs entirely on your device
+            </p>
 
             {/* Text to sign */}
             <div className="bg-white/80 rounded-2xl p-5 shadow-md border border-[#0F172A]/5">

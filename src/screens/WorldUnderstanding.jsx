@@ -10,9 +10,29 @@ import { useSpeech } from '../hooks/useSpeech.js';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
 import { CameraCapture } from '../components/shared/CameraCapture.jsx';
 
+// Footer-credit helpers — keep in sync with the same helpers in
+// SceneCamera.jsx (small enough that local copies are fine).
+function prettyVlmName(id) {
+  if (!id) return 'SmolVLM';
+  if (id.includes('SmolVLM-Instruct')) return 'SmolVLM 2.2B';
+  if (id.includes('SmolVLM-500M')) return 'SmolVLM 500M';
+  if (id.includes('SmolVLM-256M')) return 'SmolVLM 256M';
+  return 'SmolVLM';
+}
+function prettyDetectorName(id) {
+  if (!id) return 'Detector';
+  if (id.includes('grounding-dino')) return 'Grounding DINO';
+  if (id.includes('detr-resnet-50')) return 'DETR-50';
+  if (id.includes('yolos-small')) return 'YOLOS-S';
+  return 'Detector';
+}
+
 export default function WorldUnderstanding() {
   const navigate = useNavigate();
-  const { analyzeFrame, busy, caption, detections, hazards, error } = useSceneUnderstanding();
+  const {
+    analyzeFrame, busy, caption, detections, hazards,
+    captionModelId, detectorModelId, error,
+  } = useSceneUnderstanding();
   const { speak } = useSpeech();
 
   const [image, setImage]       = useState(null);
@@ -39,7 +59,12 @@ export default function WorldUnderstanding() {
 
   const noHazards  = hazards.length === 0;
   const crowdCount = detections.filter((d) => d.label === 'person').length;
-  const hasStairs  = detections.some((d) => d.label?.toLowerCase() === 'stairs');
+  // Grounding DINO emits "staircase" / "step" / "escalator" rather than
+  // a single "stairs" label, so widen the predicate to catch all of them.
+  const hasStairs = detections.some((d) => {
+    const l = d.label?.toLowerCase() || '';
+    return l === 'stairs' || l === 'staircase' || l === 'step' || l === 'escalator';
+  });
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-8">
@@ -125,7 +150,9 @@ export default function WorldUnderstanding() {
                 </div>
                 <div className="flex-1">
                   <p className="text-white font-bold text-sm">AI Scene Analysis</p>
-                  <p className="text-white/60 text-xs">On-device · DETR-101 + SmolVLM 500M</p>
+                  <p className="text-white/60 text-xs">
+                    On-device · {prettyDetectorName(detectorModelId)} + {prettyVlmName(captionModelId)}
+                  </p>
                 </div>
                 <button onClick={() => speak(caption)}>
                   <Volume2 className="w-5 h-5 text-white/70" />

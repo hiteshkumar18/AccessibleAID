@@ -6,7 +6,12 @@ import { useSpeech } from '../../hooks/useSpeech.js';
 import { vibrate } from '../../utils/haptics.js';
 import { MODELS } from '../../config/models.js';
 
-const DETECTOR = MODELS.DETECTION.id;  // Xenova/detr-resnet-50
+// SpatialNarrator uses the closed-vocab DETR-50 — its clock-position
+// math + hazard wording is built around the COCO-80 label set. The
+// open-vocab Grounding DINO path (MODELS.DETECTION) lives in
+// useSceneUnderstanding for Scene Camera + World Understanding.
+const DETECTOR_ENTRY = MODELS.DETECTION_FAST;
+const DETECTOR = DETECTOR_ENTRY.id;    // Xenova/detr-resnet-50
 const DEPTH = MODELS.DEPTH.id;         // onnx-community/depth-anything-v2-base
 
 /**
@@ -38,7 +43,7 @@ export function SpatialNarrator() {
       try {
         const [det, depth] = await Promise.all([
           loadPipeline('object-detection', DETECTOR, {
-            dtype: MODELS.DETECTION.dtype,
+            dtype: DETECTOR_ENTRY.dtype,
           }),
           loadPipeline('depth-estimation', DEPTH, {
             dtype: MODELS.DEPTH.dtype,
@@ -154,7 +159,7 @@ export function SpatialNarrator() {
         title="What's around you"
         text={narrationText}
         loading={busy}
-        meta={`${MODELS.DETECTION.name} + ${MODELS.DEPTH.name}`}
+        meta={`${DETECTOR_ENTRY.name} + ${MODELS.DEPTH.name}`}
         autoSpeak={false}
       >
         {imageUrl && boxes.length > 0 && (

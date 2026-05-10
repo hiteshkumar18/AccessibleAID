@@ -10,9 +10,31 @@ import { useSpeech } from '../hooks/useSpeech.js';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
 import { CameraCapture } from '../components/shared/CameraCapture.jsx';
 
+// Map a HuggingFace model id back to a short, accurate footer label so
+// the "credits" line in the result card reflects the model that
+// actually ran (and not a stale DETR-101 string from when the registry
+// looked different).
+function prettyVlmName(id) {
+  if (!id) return 'SmolVLM';
+  if (id.includes('SmolVLM-Instruct')) return 'SmolVLM 2.2B';
+  if (id.includes('SmolVLM-500M')) return 'SmolVLM 500M';
+  if (id.includes('SmolVLM-256M')) return 'SmolVLM 256M';
+  return 'SmolVLM';
+}
+function prettyDetectorName(id) {
+  if (!id) return 'Detector';
+  if (id.includes('grounding-dino')) return 'Grounding DINO';
+  if (id.includes('detr-resnet-50')) return 'DETR-50';
+  if (id.includes('yolos-small')) return 'YOLOS-S';
+  return 'Detector';
+}
+
 export default function SceneCamera() {
   const navigate = useNavigate();
-  const { analyzeFrame, busy, caption, detections, hazards, error: aiError } = useSceneUnderstanding();
+  const {
+    analyzeFrame, busy, caption, detections, hazards,
+    captionModelId, detectorModelId, error: aiError,
+  } = useSceneUnderstanding();
   const { speak } = useSpeech();
 
   const [image, setImage]             = useState(null);
@@ -187,7 +209,9 @@ export default function SceneCamera() {
                 </div>
                 <div className="flex-1">
                   <p className="text-white font-bold text-sm">Scene Description</p>
-                  <p className="text-white/60 text-xs">On-device · SmolVLM 500M + DETR-101</p>
+                  <p className="text-white/60 text-xs">
+                    On-device · {prettyVlmName(captionModelId)} + {prettyDetectorName(detectorModelId)}
+                  </p>
                 </div>
                 <button onClick={() => speak(caption)} aria-label="Read aloud">
                   <Volume2 className="w-5 h-5 text-white/70" />

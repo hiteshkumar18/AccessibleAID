@@ -6,7 +6,13 @@ import { vibrate } from '../utils/haptics.js';
 
 import { MODELS } from '../config/models.js';
 
-const DETECTION_MODEL = MODELS.DETECTION.id;
+// Emergency camera uses the closed-vocab COCO-80 detector directly —
+// the hazard map below is keyed by COCO labels, and the open-vocab
+// Grounding DINO path that MODELS.DETECTION now points at would emit a
+// wider label set with a different call signature. Pin to DETECTION_FAST
+// (DETR-50) for backwards-compatible behaviour.
+const DETECTION_ENTRY = MODELS.DETECTION_FAST;
+const DETECTION_MODEL = DETECTION_ENTRY.id;
 
 // Only COCO-80 labels that YOLOS/DETR can actually output
 const EMERGENCY_HAZARD_MAP = {
@@ -107,7 +113,7 @@ export function useEmergencyCamera() {
           detectionPipeRef.current = await loadPipeline(
             'object-detection',
             DETECTION_MODEL,
-            { dtype: MODELS.DETECTION.dtype }
+            { dtype: DETECTION_ENTRY.dtype }
           );
         }
 
