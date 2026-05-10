@@ -127,8 +127,6 @@ async function dispatch(task, model, args) {
       const [image] = args;
       const result = await post('depth', { image });
       if (result?.error) throw new Error(result.error);
-      // Return a RawImage-shaped object that SpatialNarrator's extractDepthMap
-      // can consume: checks out.depth.data / out.depth.width / out.depth.height
       return {
         depth: {
           data:   new Float32Array(result.data),
@@ -136,6 +134,16 @@ async function dispatch(task, model, args) {
           height: result.height,
         },
       };
+    }
+
+    case 'audio-classification': {
+      const [audioData, opts = {}] = args;
+      const result = await post('classify-audio', {
+        audio: Array.from(audioData),
+        topk:  opts.topk ?? 5,
+      });
+      if (result?.error) throw new Error(result.error);
+      return Array.isArray(result) ? result : [];
     }
 
     default:

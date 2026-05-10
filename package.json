@@ -6,10 +6,12 @@
   "description": "Lumyn — Privacy-first accessibility and emergency intelligence. Fully on-device AI.",
   "scripts": {
     "dev": "vite",
-    "server": "node server/index.mjs",
-    "start": "concurrently -n \"server,vite\" -c \"cyan,green\" \"npm run server\" \"npm run dev\"",
+    "server": "cd backend && .venv/bin/python main.py",
+    "server:node": "node server/index.mjs",
+    "start": "concurrently -n \"pyserver,vite\" -c \"cyan,green\" \"npm run server\" \"npm run dev\"",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "download-models": "cd backend && .venv/bin/python download_models.py"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

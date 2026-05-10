@@ -251,7 +251,21 @@ export const MODELS = {
     category: 'Audio',
     icon: '🎤',
     sizeMB: 39,
-    dtype: undefined, // auto — transformers.js picks q8 on WASM
+    dtype: undefined,
+  },
+
+  SOUND: {
+    id: 'MIT/ast-finetuned-audioset-10-10-0.4593',
+    task: 'audio-classification',
+    name: 'Audio Spectrogram Transformer',
+    shortName: 'Sound Classifier',
+    description:
+      'Classifies environmental sounds (doorbells, alarms, baby cries, sirens) ' +
+      'from AudioSet — runs PC-local via the Python backend.',
+    category: 'Audio',
+    icon: '🔊',
+    sizeMB: 340,
+    dtype: undefined,
   },
 
   /* ──────────────────────── LANGUAGE ──────────────────────── */

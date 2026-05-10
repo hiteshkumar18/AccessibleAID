@@ -19,10 +19,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Forward every /api/* request from the browser to the local inference
-      // server running on port 3001, so CORS is never an issue in dev mode.
+      // Forward every /api/* request from the browser to the Python AI backend
+      // running on port 8000 (backend/main.py).
       '/api': {
-        target:       'http://localhost:3001',
+        target:       'http://localhost:8000',
         changeOrigin: true,
       },
     },

@@ -1,70 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { MEDICATIONS } from '../data/medications.js';
-import { cosineSimilarity, l2Normalize } from '../utils/cosineSimilarity.js';
-import { useModelLoader } from './useModelLoader.js';
-
-import { MODELS } from '../config/models.js';
-
-const EMBED_MODEL = MODELS.EMBEDDING.id;
-
 /**
- * On-device RAG over the medications knowledge base.
+ * useMedSearch — keyword-based medication lookup.
  *
- * Flow:
- *   1. Load the embedding pipeline (cached after first call).
- *   2. Embed every medication's "<name> (<generic>): <description>" once.
- *   3. Expose `search(query, k)` that embeds the query and returns top-k
- *      matches with scores in [0, 1].
+ * Replaces the previous embedding/RAG pipeline. OCR extracts raw text from
+ * the medication label; this hook scores each medication entry against that
+ * text using simple token overlap. No embedding model or backend call needed.
  */
-export function useRAG() {
-  const { loadPipeline } = useModelLoader();
-  const indexRef = useRef([]);
-  const pipeRef = useRef(null);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState(null);
+import { useCallback } from 'react';
+import { MEDICATIONS } from '../data/medications.js';
 
-  const embedText = useCallback(async (pipe, text) => {
-    const out = await pipe(text, { pooling: 'mean', normalize: true });
-    // tjs returns a Tensor — extract a plain Float32Array.
-    const arr = Array.from(out.data);
-    return l2Normalize(arr);
+function tokenize(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function scoreMatch(medEntry, queryTokens) {
+  const haystack = tokenize(
+    `${medEntry.name} ${medEntry.genericName} ${medEntry.description} ${medEntry.appearance}`
+  );
+  const haystackSet = new Set(haystack);
+  let hits = 0;
+  for (const tok of queryTokens) {
+    if (haystackSet.has(tok)) hits++;
+    // Partial match: query token is a prefix of a haystack token (e.g. "acetamin" → "acetaminophen")
+    else if (haystack.some((h) => h.startsWith(tok) || tok.startsWith(h))) hits += 0.5;
+  }
+  return queryTokens.length > 0 ? hits / queryTokens.length : 0;
+}
+
+export function useRAG() {
+  const search = useCallback((query, k = 3) => {
+    const tokens = tokenize(query);
+    if (!tokens.length) return [];
+    const scored = MEDICATIONS.map((med) => ({
+      score: scoreMatch(med, tokens),
+      payload: med,
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, k).filter((r) => r.score > 0);
   }, []);
 
-  const init = useCallback(async () => {
-    if (ready || pipeRef.current) return;
-    try {
-      const pipe = await loadPipeline('feature-extraction', EMBED_MODEL);
-      pipeRef.current = pipe;
-      const built = [];
-      for (const med of MEDICATIONS) {
-        const text = `${med.name} (${med.genericName}). ${med.description} Appearance: ${med.appearance}`;
-        const vector = await embedText(pipe, text);
-        built.push({ vector, payload: med });
-      }
-      indexRef.current = built;
-      setReady(true);
-    } catch (e) {
-      setError(e?.message || 'Failed to load knowledge base.');
-    }
-  }, [loadPipeline, embedText, ready]);
-
-  useEffect(() => {
-    init();
-  }, [init]);
-
-  const search = useCallback(
-    async (query, k = 3) => {
-      if (!pipeRef.current || !indexRef.current.length) return [];
-      const q = await embedText(pipeRef.current, query);
-      const scored = indexRef.current.map((item) => ({
-        score: cosineSimilarity(q, item.vector),
-        payload: item.payload,
-      }));
-      scored.sort((a, b) => b.score - a.score);
-      return scored.slice(0, k);
-    },
-    [embedText]
-  );
-
-  return { ready, error, search, count: MEDICATIONS.length };
+  return { ready: true, error: null, search, count: MEDICATIONS.length };
 }
