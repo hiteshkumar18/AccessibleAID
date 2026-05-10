@@ -134,7 +134,7 @@ export default function Home() {
             <AIActionButton icon={<NavigationCompassIcon className="w-7 h-7" />} label="Navigate" onClick={() => navigate('/navigation')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.65} />
             <AIActionButton icon={<CaptionBubbleIcon className="w-7 h-7" />} label="Live Captions" onClick={() => navigate('/live-captioning')} gradient="from-[#14B8A6] to-[#3B82F6]" delay={0.7} />
             <AIActionButton icon={<SignHandIcon className="w-7 h-7" />} label="Sign Language" onClick={() => navigate('/sign-language')} gradient="from-[#10B981] to-[#14B8A6]" delay={0.75} />
-            <AIActionButton icon={<BrainAccessibilityIcon className="w-7 h-7" />} label="Simplify Info" onClick={() => navigate('/world-understanding')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.8} />
+            <AIActionButton icon={<BrainAccessibilityIcon className="w-7 h-7" />} label="Simplify Info" onClick={() => navigate('/simplify')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.8} />
           </div>
 
           {/* Emergency & Safety */}

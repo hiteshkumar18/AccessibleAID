@@ -1,23 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// transformers.js v3 ships ESM workers and uses onnxruntime-web. We need to
-// make sure Vite does not try to pre-bundle the WASM/ONNX backends.
 export default defineConfig({
   plugins: [react()],
-  worker: {
-    format: 'es',
-  },
+  worker: { format: 'es' },
+  // Let Vite pre-bundle transformers.js so it is served as proper ESM.
+  // Without pre-bundling, Vite serves the raw webpack/CJS bundle directly —
+  // browsers cannot dynamic-import() a CJS file, so the import silently fails
+  // and every AI feature appears to do nothing.
+  //
+  // onnxruntime-web is excluded because it ships raw .wasm binaries that esbuild
+  // cannot bundle; it is already inlined inside the transformers.js webpack bundle
+  // so it never needs to be imported separately.
   optimizeDeps: {
-    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+    exclude: ['onnxruntime-web'],
   },
-  // NOTE: We deliberately do NOT set Cross-Origin-Opener-Policy or
-  // Cross-Origin-Embedder-Policy here. They enable SharedArrayBuffer (used
-  // by ORT-WASM multithreading) but in practice they also block large model
-  // fetches from the Hugging Face CDN on some Chrome builds — the request
-  // starts, headers return, and the body silently never streams. Single-
-  // threaded WASM is plenty fast for the small models we use.
+  // Treat .wasm as plain assets so Vite copies them to dist/ untouched.
+  assetsInclude: ['**/*.wasm'],
   build: {
     target: 'esnext',
+    assetsInlineLimit: 0,
   },
 });

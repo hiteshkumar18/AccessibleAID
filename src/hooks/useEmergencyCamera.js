@@ -8,17 +8,27 @@ import { MODELS } from '../config/models.js';
 
 const DETECTION_MODEL = MODELS.DETECTION.id;
 
+// Only COCO-80 labels that YOLOS/DETR can actually output
 const EMERGENCY_HAZARD_MAP = {
-  fire: { severity: 'critical', icon: '🔥', label: 'Active Fire', color: 'red' },
-  smoke: { severity: 'critical', icon: '💨', label: 'Heavy Smoke', color: 'gray' },
-  person: { severity: 'medium', icon: '👤', label: 'Person Detected', color: 'blue' },
-  car: { severity: 'high', icon: '🚗', label: 'Vehicle', color: 'orange' },
-  truck: { severity: 'high', icon: '🚛', label: 'Large Vehicle', color: 'orange' },
-  bus: { severity: 'high', icon: '🚌', label: 'Bus', color: 'orange' },
-  stairs: { severity: 'medium', icon: '🪜', label: 'Stairs Ahead', color: 'yellow' },
-  chair: { severity: 'low', icon: '🪑', label: 'Obstacle', color: 'yellow' },
-  dining_table: { severity: 'low', icon: '🪑', label: 'Obstacle', color: 'yellow' },
-  bottle: { severity: 'low', icon: '🧴', label: 'Debris', color: 'yellow' },
+  // Critical — large fast-moving vehicles
+  car:          { severity: 'critical', icon: '🚗', label: 'Vehicle', color: 'red' },
+  truck:        { severity: 'critical', icon: '🚛', label: 'Large Vehicle', color: 'red' },
+  bus:          { severity: 'critical', icon: '🚌', label: 'Bus', color: 'red' },
+  train:        { severity: 'critical', icon: '🚂', label: 'Train', color: 'red' },
+  // High — weapons
+  knife:        { severity: 'high', icon: '🔪', label: 'Knife Visible', color: 'orange' },
+  scissors:     { severity: 'high', icon: '✂️', label: 'Sharp Object', color: 'orange' },
+  // Medium — smaller vehicles
+  motorcycle:   { severity: 'high', icon: '🏍️', label: 'Motorcycle', color: 'orange' },
+  bicycle:      { severity: 'medium', icon: '🚲', label: 'Bicycle', color: 'yellow' },
+  // Low — obstacles / trip hazards
+  person:       { severity: 'low', icon: '👤', label: 'Person', color: 'blue' },
+  chair:        { severity: 'low', icon: '🪑', label: 'Chair Obstacle', color: 'yellow' },
+  'dining table': { severity: 'low', icon: '🪑', label: 'Table Obstacle', color: 'yellow' },
+  bench:        { severity: 'low', icon: '🪑', label: 'Bench', color: 'yellow' },
+  suitcase:     { severity: 'low', icon: '🧳', label: 'Luggage', color: 'yellow' },
+  skateboard:   { severity: 'low', icon: '🛹', label: 'Skateboard', color: 'yellow' },
+  bottle:       { severity: 'low', icon: '🧴', label: 'Debris', color: 'yellow' },
 };
 
 function generateEvacuationPath(hazards, frameWidth = 640, frameHeight = 480) {

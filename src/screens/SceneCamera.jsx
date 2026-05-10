@@ -187,7 +187,7 @@ export default function SceneCamera() {
                 </div>
                 <div className="flex-1">
                   <p className="text-white font-bold text-sm">Scene Description</p>
-                  <p className="text-white/60 text-xs">On-device · ViT-GPT2 + YOLOS</p>
+                  <p className="text-white/60 text-xs">On-device · SmolVLM 500M + DETR-101</p>
                 </div>
                 <button onClick={() => speak(caption)} aria-label="Read aloud">
                   <Volume2 className="w-5 h-5 text-white/70" />

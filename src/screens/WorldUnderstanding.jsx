@@ -125,7 +125,7 @@ export default function WorldUnderstanding() {
                 </div>
                 <div className="flex-1">
                   <p className="text-white font-bold text-sm">AI Scene Analysis</p>
-                  <p className="text-white/60 text-xs">On-device · YOLOS + ViT-GPT2</p>
+                  <p className="text-white/60 text-xs">On-device · DETR-101 + SmolVLM 500M</p>
                 </div>
                 <button onClick={() => speak(caption)}>
                   <Volume2 className="w-5 h-5 text-white/70" />

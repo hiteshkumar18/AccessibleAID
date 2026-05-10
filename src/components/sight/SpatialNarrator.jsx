@@ -6,8 +6,8 @@ import { useSpeech } from '../../hooks/useSpeech.js';
 import { vibrate } from '../../utils/haptics.js';
 import { MODELS } from '../../config/models.js';
 
-const DETECTOR = MODELS.DETECTION.id;  // Xenova/yolos-small
-const DEPTH = MODELS.DEPTH.id;         // Xenova/depth-anything-v2-small-hf
+const DETECTOR = MODELS.DETECTION.id;  // Xenova/detr-resnet-101
+const DEPTH = MODELS.DEPTH.id;         // onnx-community/depth-anything-v2-base
 
 /**
  * "Where am I, what's around me, how far is it?"
@@ -37,8 +37,12 @@ export function SpatialNarrator() {
       setImageUrl(dataUrl);
       try {
         const [det, depth] = await Promise.all([
-          loadPipeline('object-detection', DETECTOR),
-          loadPipeline('depth-estimation', DEPTH),
+          loadPipeline('object-detection', DETECTOR, {
+            dtype: MODELS.DETECTION.dtype,
+          }),
+          loadPipeline('depth-estimation', DEPTH, {
+            dtype: MODELS.DEPTH.dtype,
+          }),
         ]);
 
         // Read original image dims so clock-position math is right
@@ -150,7 +154,7 @@ export function SpatialNarrator() {
         title="What's around you"
         text={narrationText}
         loading={busy}
-        meta="DETR + Depth-Anything-v2"
+        meta="DETR-ResNet-101 + Depth-Anything-v2 Base"
         autoSpeak={false}
       >
         {imageUrl && boxes.length > 0 && (

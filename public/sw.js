@@ -10,7 +10,11 @@
  * twice. That's intentional — the SW layer makes installs feel instant on
  * subsequent loads while the IDB layer handles the actual model bytes.
  */
-const VERSION = 'v1';
+// Bumping VERSION evicts every cached app-shell asset and HF model file on
+// the next service-worker activation. We bump it whenever the model registry
+// in src/config/models.js changes so a stale / broken model id (e.g. a
+// previous 404 response from a non-existent repo) cannot stick around.
+const VERSION = 'v2-vlm';
 const SHELL_CACHE = `aaid-shell-${VERSION}`;
 const MODEL_CACHE = `aaid-models-${VERSION}`;
 

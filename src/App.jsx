@@ -21,6 +21,7 @@ const FamilySafety      = lazy(() => import('./screens/FamilySafety.jsx'));
 const OfflineMode       = lazy(() => import('./screens/OfflineMode.jsx'));
 const MedicalAssistant  = lazy(() => import('./screens/MedicalAssistant.jsx'));
 const AIOrchestration   = lazy(() => import('./screens/AIOrchestration.jsx'));
+const SimplifyScreen    = lazy(() => import('./screens/SimplifyScreen.jsx'));
 
 function ScreenFallback() {
   return (
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="/offline"              element={<OfflineMode />} />
             <Route path="/medical"              element={<MedicalAssistant />} />
             <Route path="/ai-orchestration"     element={<AIOrchestration />} />
+            <Route path="/simplify"             element={<SimplifyScreen />} />
             {/* Fallback */}
             <Route path="*"                     element={<Navigate to="/" replace />} />
           </Routes>

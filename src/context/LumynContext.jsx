@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,13 +12,8 @@ const PROFILE_KEY = 'lumyn:profile:v1';
 const FIRST_RUN_KEY = 'lumyn:firstRunDone';
 
 const initialState = {
-  // Online status
   online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-
-  // Loading registry for AI models
   loaders: {},
-
-  // Which AI models have been loaded
   modelsReady: {
     sceneUnderstanding: false,
     liveCaptions: false,
@@ -27,16 +23,10 @@ const initialState = {
     depthEstimation: false,
     soundClassification: false,
   },
-
-  // ARIA live announcements
   announcement: '',
-
-  // Modal state
   showOnboarding: false,
   showSettings: false,
   showProfile: false,
-
-  // Cross-mode memory for context continuity
   memory: {
     lastSceneDescription: '',
     lastOcrText: '',
@@ -46,43 +36,33 @@ const initialState = {
     environmentContext: '',
     lastNavigationRoute: null,
   },
-
-  // Emergency state
   emergency: {
     active: false,
-    type: null, // 'fire' | 'earthquake' | 'flood' | 'shooter' | 'medical' | null
+    type: null,
     hazards: [],
     evacuationPath: [],
     nearestShelter: null,
     alertSent: false,
   },
-
-  // Panic/cognitive state
   panicMode: false,
-  cognitiveLoad: 'normal', // 'normal' | 'reduced' | 'minimal'
-
-  // Accessibility profile
+  cognitiveLoad: 'normal',
   profile: {
     name: '',
-    disabilities: [], // 'visual' | 'hearing' | 'mobility' | 'cognitive' | 'speech'
-    preferredComm: 'voice', // 'voice' | 'text' | 'haptic'
+    disabilities: [],
+    preferredComm: 'voice',
     wheelchairUser: false,
-    assistiveTech: [], // 'screen-reader' | 'hearing-aid' | 'cane' | 'prosthetic'
+    assistiveTech: [],
     emergencyContacts: [],
     medicalInfo: '',
     onboardingDone: false,
   },
-
-  // Privacy state — all processing is local by default
   privacy: {
     cameraProcessingLocal: true,
     audioProcessingLocal: true,
     locationShared: false,
     cloudFallbackAllowed: false,
-    lastProcessingMode: 'on-device', // 'on-device' | 'offline' | 'cloud-fallback'
+    lastProcessingMode: 'on-device',
   },
-
-  // AI agent status
   agents: {
     navigation: 'idle',
     accessibility: 'idle',
@@ -93,16 +73,12 @@ const initialState = {
     social: 'idle',
     cognitive: 'idle',
   },
-
-  // Family safety
   family: {
     members: [],
     groupLocation: null,
     regroupPoint: null,
     emergencyBroadcast: null,
   },
-
-  // Persisted user preferences
   prefs: {
     fontScale: 1,
     speechRate: 1,
@@ -112,10 +88,10 @@ const initialState = {
     autoSpeak: true,
     voiceOnly: false,
     reducedMotion: false,
-    backend: 'auto', // 'auto' | 'webgpu' | 'wasm'
+    backend: 'auto',
     hapticFeedback: true,
     largeText: false,
-    colorBlindMode: 'none', // 'none' | 'deuteranopia' | 'protanopia' | 'tritanopia'
+    colorBlindMode: 'none',
   },
 };
 
@@ -211,43 +187,30 @@ function reducer(state, action) {
 
 const LumynContext = createContext(null);
 
+function initializeState() {
+  const s = { ...initialState };
+  try {
+    const rawPrefs = localStorage.getItem(PREFS_KEY);
+    if (rawPrefs) s.prefs = { ...s.prefs, ...JSON.parse(rawPrefs) };
+    const rawProfile = localStorage.getItem(PROFILE_KEY);
+    if (rawProfile) s.profile = { ...s.profile, ...JSON.parse(rawProfile) };
+    if (!localStorage.getItem(FIRST_RUN_KEY)) s.showOnboarding = true;
+  } catch (_) {}
+  return s;
+}
+
 export function LumynProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  // Use lazy initializer so hydration runs ONCE — immune to StrictMode double-effect
+  const [state, dispatch] = useReducer(reducer, undefined, initializeState);
 
-  // Hydrate preferences and profile from localStorage
   useEffect(() => {
-    try {
-      const rawPrefs = localStorage.getItem(PREFS_KEY);
-      if (rawPrefs) {
-        dispatch({ type: 'HYDRATE_PREFS', prefs: JSON.parse(rawPrefs) });
-      }
-      const rawProfile = localStorage.getItem(PROFILE_KEY);
-      if (rawProfile) {
-        dispatch({ type: 'HYDRATE_PROFILE', profile: JSON.parse(rawProfile) });
-      }
-    } catch (_) {}
-
-    const seen = localStorage.getItem(FIRST_RUN_KEY);
-    if (!seen) {
-      dispatch({ type: 'SHOW_ONBOARDING', show: true });
-    }
-  }, []);
-
-  // Persist prefs
-  useEffect(() => {
-    try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs));
-    } catch (_) {}
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs)); } catch (_) {}
   }, [state.prefs]);
 
-  // Persist profile
   useEffect(() => {
-    try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(state.profile));
-    } catch (_) {}
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(state.profile)); } catch (_) {}
   }, [state.profile]);
 
-  // Apply CSS classes driven by preferences
   useEffect(() => {
     const html = document.documentElement;
     html.dataset.fontScale = String(state.prefs.fontScale);
@@ -256,7 +219,6 @@ export function LumynProvider({ children }) {
     html.classList.toggle('a11y-large-text', !!state.prefs.largeText);
   }, [state.prefs.fontScale, state.prefs.highContrast, state.prefs.voiceOnly, state.prefs.largeText]);
 
-  // Online/offline tracking
   useEffect(() => {
     const up = () => dispatch({ type: 'SET_ONLINE', online: true });
     const down = () => dispatch({ type: 'SET_ONLINE', online: false });
@@ -268,56 +230,56 @@ export function LumynProvider({ children }) {
     };
   }, []);
 
-  const api = useMemo(
-    () => ({
-      state,
-      dispatch,
+  // Stable dispatch-based API — useCallback([dispatch]) never changes because
+  // dispatch from useReducer is always the same reference across renders.
+  const setLoader = useCallback((key, value) => dispatch({ type: 'SET_LOADER', key, value }), [dispatch]);
+  const clearLoader = useCallback((key) => dispatch({ type: 'CLEAR_LOADER', key }), [dispatch]);
+  const setModelReady = useCallback((model, ready) => dispatch({ type: 'SET_MODEL_READY', model, ready }), [dispatch]);
+  const announce = useCallback((text) => dispatch({ type: 'ANNOUNCE', text }), [dispatch]);
+  const updatePrefs = useCallback((patch) => dispatch({ type: 'UPDATE_PREFS', patch }), [dispatch]);
+  const remember = useCallback((patch) => dispatch({ type: 'REMEMBER', patch }), [dispatch]);
+  const updateProfile = useCallback((patch) => dispatch({ type: 'UPDATE_PROFILE', patch }), [dispatch]);
+  const finishOnboarding = useCallback(() => {
+    localStorage.setItem(FIRST_RUN_KEY, '1');
+    dispatch({ type: 'SHOW_ONBOARDING', show: false });
+    dispatch({ type: 'UPDATE_PROFILE', patch: { onboardingDone: true } });
+  }, [dispatch]);
+  const activateEmergency = useCallback((type) => dispatch({ type: 'SET_EMERGENCY', patch: { active: true, type } }), [dispatch]);
+  const updateEmergency = useCallback((patch) => dispatch({ type: 'SET_EMERGENCY', patch }), [dispatch]);
+  const clearEmergency = useCallback(() => dispatch({ type: 'CLEAR_EMERGENCY' }), [dispatch]);
+  const setPanicMode = useCallback((active) => dispatch({ type: 'SET_PANIC_MODE', active }), [dispatch]);
+  const updatePrivacy = useCallback((patch) => dispatch({ type: 'UPDATE_PRIVACY', patch }), [dispatch]);
+  const setAgentStatus = useCallback((agent, status) => dispatch({ type: 'SET_AGENT_STATUS', agent, status }), [dispatch]);
+  const updateFamily = useCallback((patch) => dispatch({ type: 'UPDATE_FAMILY', patch }), [dispatch]);
 
-      // Model loading
-      setLoader: (key, value) => dispatch({ type: 'SET_LOADER', key, value }),
-      clearLoader: (key) => dispatch({ type: 'CLEAR_LOADER', key }),
-      setModelReady: (model, ready) => dispatch({ type: 'SET_MODEL_READY', model, ready }),
+  // Only `state` changes trigger re-renders of consumers; all functions are stable.
+  const value = useMemo(() => ({
+    state,
+    dispatch,
+    setLoader,
+    clearLoader,
+    setModelReady,
+    announce,
+    updatePrefs,
+    remember,
+    updateProfile,
+    finishOnboarding,
+    activateEmergency,
+    updateEmergency,
+    clearEmergency,
+    setPanicMode,
+    updatePrivacy,
+    setAgentStatus,
+    updateFamily,
+  }), [
+    state,
+    setLoader, clearLoader, setModelReady,
+    announce, updatePrefs, remember, updateProfile, finishOnboarding,
+    activateEmergency, updateEmergency, clearEmergency,
+    setPanicMode, updatePrivacy, setAgentStatus, updateFamily,
+  ]);
 
-      // Announcements
-      announce: (text) => dispatch({ type: 'ANNOUNCE', text }),
-
-      // Preferences
-      updatePrefs: (patch) => dispatch({ type: 'UPDATE_PREFS', patch }),
-
-      // Memory
-      remember: (patch) => dispatch({ type: 'REMEMBER', patch }),
-
-      // Profile
-      updateProfile: (patch) => dispatch({ type: 'UPDATE_PROFILE', patch }),
-      finishOnboarding: () => {
-        localStorage.setItem(FIRST_RUN_KEY, '1');
-        dispatch({ type: 'SHOW_ONBOARDING', show: false });
-        dispatch({ type: 'UPDATE_PROFILE', patch: { onboardingDone: true } });
-      },
-
-      // Emergency
-      activateEmergency: (type) =>
-        dispatch({ type: 'SET_EMERGENCY', patch: { active: true, type } }),
-      updateEmergency: (patch) => dispatch({ type: 'SET_EMERGENCY', patch }),
-      clearEmergency: () => dispatch({ type: 'CLEAR_EMERGENCY' }),
-
-      // Panic mode
-      setPanicMode: (active) => dispatch({ type: 'SET_PANIC_MODE', active }),
-
-      // Privacy
-      updatePrivacy: (patch) => dispatch({ type: 'UPDATE_PRIVACY', patch }),
-
-      // Agents
-      setAgentStatus: (agent, status) =>
-        dispatch({ type: 'SET_AGENT_STATUS', agent, status }),
-
-      // Family
-      updateFamily: (patch) => dispatch({ type: 'UPDATE_FAMILY', patch }),
-    }),
-    [state]
-  );
-
-  return <LumynContext.Provider value={api}>{children}</LumynContext.Provider>;
+  return <LumynContext.Provider value={value}>{children}</LumynContext.Provider>;
 }
 
 export function useLumyn() {
@@ -326,7 +288,6 @@ export function useLumyn() {
   return ctx;
 }
 
-// Re-export useApp as an alias to useLumyn for backwards compat with existing hooks
 export function useApp() {
   return useLumyn();
 }

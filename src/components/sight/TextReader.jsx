@@ -21,7 +21,9 @@ export function TextReader() {
       setBusy(true);
       setText('');
       try {
-        const pipe = await loadPipeline('image-to-text', MODEL);
+        const pipe = await loadPipeline('image-to-text', MODEL, {
+          dtype: MODELS.OCR.dtype,
+        });
         const out = await pipe(dataUrl);
         const recognized = Array.isArray(out)
           ? out[0]?.generated_text
@@ -62,7 +64,7 @@ export function TextReader() {
         title="Recognized text"
         text={text}
         loading={busy}
-        meta="On-device · TrOCR"
+        meta="On-device · TrOCR Base (Printed)"
       >
         {text && !busy && (
           <button

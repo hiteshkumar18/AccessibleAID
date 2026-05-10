@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speech Test</title>
+<style>
+  body { font-family: sans-serif; padding: 40px; background: #0f172a; color: white; }
+  button { padding: 16px 32px; font-size: 18px; border-radius: 12px; border: none;
+    background: #3b82f6; color: white; cursor: pointer; margin: 8px; }
+  button:hover { background: #2563eb; }
+  #log { background: #1e293b; padding: 16px; border-radius: 12px; margin-top: 20px;
+    min-height: 100px; white-space: pre-wrap; font-family: monospace; font-size: 14px; }
+  .ok { color: #4ade80; }
+  .err { color: #f87171; }
+  .info { color: #60a5fa; }
+</style>
+</head>
+<body>
+<h1>Diagnostic Tests</h1>
+
+<button onclick="testSpeech()">Test Speech Recognition</button>
+<button onclick="testMic()">Test Microphone</button>
+<button onclick="clearLog()">Clear</button>
+
+<div id="log">Click a button to run tests...\n</div>
+
+<script>
+function log(msg, type='info') {
+  const el = document.getElementById('log');
+  el.innerHTML += `<span class="${type}">[${new Date().toLocaleTimeString()}] ${msg}</span>\n`;
+}
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+// Test 1: Web Speech API
+function testSpeech() {
+  log('--- Testing Web Speech API ---');
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    log('❌ SpeechRecognition NOT available in this browser', 'err');
+    log('Use Chrome or Edge', 'err');
+    return;
+  }
+  log('✅ SpeechRecognition is available', 'ok');
+
+  const rec = new SR();
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+
+  rec.onstart = () => log('✅ Microphone started — speak now!', 'ok');
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    log(`✅ Heard: "${text}"`, 'ok');
+  };
+  rec.onerror = (e) => log(`❌ Error: ${e.error}`, 'err');
+  rec.onend = () => log('ℹ️ Recognition ended', 'info');
+
+  try {
+    rec.start();
+    log('▶ Started — allow microphone if prompted', 'info');
+  } catch(e) {
+    log(`❌ Failed to start: ${e.message}`, 'err');
+  }
+}
+
+// Test 2: Raw microphone
+async function testMic() {
+  log('--- Testing Microphone Access ---');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('✅ Microphone access granted!', 'ok');
+    stream.getTracks().forEach(t => t.stop());
+  } catch(e) {
+    log(`❌ Microphone failed: ${e.name} — ${e.message}`, 'err');
+  }
+}
+
+// Auto-run checks
+log('Browser: ' + navigator.userAgent.split(' ').pop());
+log('Protocol: ' + location.protocol + ' (must be https: or localhost)');
+log('Host: ' + location.host);
+log(window.SpeechRecognition || window.webkitSpeechRecognition
+  ? '✅ SpeechRecognition available'
+  : '❌ SpeechRecognition NOT available',
+  window.SpeechRecognition || window.webkitSpeechRecognition ? 'ok' : 'err');
+log(navigator.mediaDevices
+  ? '✅ MediaDevices available'
+  : '❌ MediaDevices NOT available',
+  navigator.mediaDevices ? 'ok' : 'err');
+</script>
+</body>
+</html>

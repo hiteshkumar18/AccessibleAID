@@ -21,7 +21,7 @@ export default function MedicalAssistant() {
   const navigate = useNavigate();
   const { ready, error: ragError, search, count } = useRAG();
   const { videoRef, start, stop, active } = useCamera({ facingMode: 'environment' });
-  const { loadPipeline } = useModelLoader();
+  const { loadVLM } = useModelLoader();
   const { speak } = useSpeech();
   const { state } = useLumyn();
 
@@ -31,7 +31,7 @@ export default function MedicalAssistant() {
   const [tab, setTab] = useState('medications'); // 'medications' | 'firstaid'
   const [selectedGuide, setSelectedGuide] = useState(null);
 
-  const loaderEntry = Object.values(state.loaders).find((v) => v?.label?.toLowerCase().includes('embed'));
+  const loaderEntry = Object.entries(state.loaders).find(([key]) => key.includes('feature-extraction'))?.[1];
 
   const handleSearch = async () => {
     if (!query.trim() || !ready) return;
@@ -48,20 +48,45 @@ export default function MedicalAssistant() {
 
   const handleCameraIdentify = async () => {
     await start();
-    // Capture frame and run image-to-text for medication label
+    // Camera takes ~1.5 s to settle on most devices; once focused, snap a
+    // frame and ask the VLM to read the medication label.
     setTimeout(async () => {
       const dataUrl = captureFrameToDataURL(videoRef.current, 640);
       if (!dataUrl) return;
       try {
-        const pipe = await loadPipeline(MODELS.CAPTION.task, MODELS.CAPTION.id);
-        const out = await pipe(dataUrl);
-        const caption = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text;
-        if (caption) {
-          setQuery(caption);
-          const res = await search(caption, 4);
+        const vlm = await loadVLM(MODELS.CAPTION);
+        const label = await vlm.generate(
+          [
+            {
+              role: 'user',
+              content: [
+                { type: 'image', url: dataUrl },
+                {
+                  type: 'text',
+                  text:
+                    'You are reading a medication bottle, blister pack, or pill. ' +
+                    'Reply with one short line in this exact format: ' +
+                    '"<brand or generic name> – <strength>; <dosage form>". ' +
+                    'If the strength or form is not visible, omit them. ' +
+                    'Do not invent values. Example: "Ibuprofen – 200 mg; tablet".',
+                },
+              ],
+            },
+          ],
+          { max_new_tokens: 64, do_sample: false }
+        );
+        if (label) {
+          setQuery(label);
+          const res = await search(label, 4);
           setResults(res);
+          if (res.length > 0) {
+            speak(`Top match for what I read: ${res[0].payload.name}.`);
+          }
         }
-      } catch (_) {}
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[Medical] camera identify failed', e);
+      }
       stop();
     }, 1500);
   };

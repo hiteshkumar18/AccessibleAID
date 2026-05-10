@@ -8,15 +8,13 @@ import { fmtConfidence, announce } from '../../utils/a11y.js';
 
 import { MODELS } from '../../config/models.js';
 
-const VISION_MODEL = MODELS.CAPTION.id;
-
 /**
- * 1. Caption the photo of the pill / bottle to a descriptive string.
+ * 1. Ask the on-device VLM to read the medication label / describe the pill.
  * 2. Embed that description and run cosine search against the RAG index.
  * 3. Surface the top match with structured info and speak the dosage aloud.
  */
 export function MedIdentifier() {
-  const { loadPipeline } = useModelLoader();
+  const { loadVLM } = useModelLoader();
   const { ready, error: ragError, search } = useRAG();
   const { speak } = useSpeech();
   const [busy, setBusy] = useState(false);
@@ -32,9 +30,27 @@ export function MedIdentifier() {
       setCaption('');
       try {
         if (!ready) throw new Error('Knowledge base still loading. Try again in a moment.');
-        const pipe = await loadPipeline('image-to-text', VISION_MODEL);
-        const out = await pipe(dataUrl);
-        const cap = (Array.isArray(out) ? out[0]?.generated_text : out?.generated_text) || '';
+        const vlm = await loadVLM(MODELS.CAPTION);
+        const cap = await vlm.generate(
+          [
+            {
+              role: 'user',
+              content: [
+                { type: 'image', url: dataUrl },
+                {
+                  type: 'text',
+                  text:
+                    'Identify this medication. Read the label exactly if visible: ' +
+                    'brand name, generic name, strength, and dosage form ' +
+                    '(tablet, capsule, syrup, etc.). If the label is not clear, ' +
+                    'describe the pill itself — colour, shape, imprint markings. ' +
+                    'Reply in 1–2 short sentences only. Do not invent details.',
+                },
+              ],
+            },
+          ],
+          { max_new_tokens: 96, do_sample: false }
+        );
         setCaption(cap);
         const results = await search(cap || 'medication pill bottle', 3);
         setMatches(results);
@@ -50,7 +66,7 @@ export function MedIdentifier() {
         setBusy(false);
       }
     },
-    [loadPipeline, ready, search, speak]
+    [loadVLM, ready, search, speak]
   );
 
   const top = matches[0];
