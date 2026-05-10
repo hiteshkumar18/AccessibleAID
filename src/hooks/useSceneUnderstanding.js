@@ -94,17 +94,17 @@ export function useSceneUnderstanding() {
       updatePrivacy({ cameraProcessingLocal: true, lastProcessingMode: 'on-device' });
 
       try {
-        // Load both models in parallel (each cached after first use). The
-        // VLM uses the manual AutoModel API; the detector uses the standard
-        // object-detection pipeline.
-        const [captionVLM, detectionPipe] = await Promise.all([
-          captionVLMRef.current
-            ? Promise.resolve(captionVLMRef.current)
-            : loadVLM(MODELS.CAPTION).then((v) => { captionVLMRef.current = v; return v; }),
-          detectionPipeRef.current
-            ? Promise.resolve(detectionPipeRef.current)
-            : loadPipeline('object-detection', DETECTION_MODEL, { dtype: MODELS.DETECTION.dtype }).then((p) => { detectionPipeRef.current = p; return p; }),
-        ]);
+        // Load the smaller, safety-critical detector first. On a cold start,
+        // downloading multiple large models in parallel is brittle and was
+        // causing first-run failures for users on normal connections.
+        const detectionPipe = detectionPipeRef.current
+          ? detectionPipeRef.current
+          : await loadPipeline('object-detection', DETECTION_MODEL, {
+              dtype: MODELS.DETECTION.dtype,
+            }).then((p) => {
+              detectionPipeRef.current = p;
+              return p;
+            });
 
         // Run detection first — faster and safety-critical
         const rawDetections = await withTimeout(
@@ -148,6 +148,13 @@ export function useSceneUnderstanding() {
             ],
           },
         ];
+
+        const captionVLM = captionVLMRef.current
+          ? captionVLMRef.current
+          : await loadVLM(MODELS.CAPTION).then((v) => {
+              captionVLMRef.current = v;
+              return v;
+            });
 
         const rawCaption = await withTimeout(
           captionVLM.generate(vlmMessages, {

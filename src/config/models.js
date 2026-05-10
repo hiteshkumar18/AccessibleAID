@@ -18,11 +18,12 @@
  *                    first load (cached afterwards).
  *  - CAPTION_FAST  : SmolVLM-500M-Instruct — ~500 MB fallback when WebGPU
  *                    is unavailable / device is memory-constrained.
- *  - DETECTION     : DETR-ResNet-101 (COCO-80). DETR-101 is significantly
- *                    more accurate than YOLOS-small on small objects and
- *                    cluttered indoor scenes — the same hazard-label set
- *                    keeps working unchanged.
- *  - DETECTION_FAST: YOLOS-small kept as a low-latency fallback.
+ *  - DETECTION     : DETR-ResNet-50 (COCO-80). This is still a strong
+ *                    detector, but its first-load download is materially
+ *                    smaller and more reliable than ResNet-101 in browser
+ *                    environments.
+ *  - DETECTION_FAST: YOLOS-small kept as an emergency fallback when even
+ *                    DETR-50 cannot be fetched or initialized.
  *  - OCR           : TrOCR-large-printed — best public ONNX OCR for
  *                    medication labels, signs, menus.
  *  - DEPTH         : Depth-Anything-v2-base — sharper relative-depth maps
@@ -105,18 +106,19 @@ export const MODELS = {
   },
 
   DETECTION: {
-    id: 'Xenova/detr-resnet-101',
+    id: 'Xenova/detr-resnet-50',
     task: 'object-detection',
-    name: 'DETR ResNet-101 (COCO-80)',
+    name: 'DETR ResNet-50 (COCO-80)',
     shortName: 'Object Detector',
     description:
-      'End-to-end DETR with a ResNet-101 backbone. Notably better recall on ' +
-      'small / occluded objects in cluttered scenes than YOLOS-small.',
+      'End-to-end DETR with a ResNet-50 backbone. Better first-load ' +
+      'reliability than the heavier ResNet-101 browser export while ' +
+      'preserving the same COCO-80 hazard label set.',
     category: 'Vision',
     icon: '🔍',
-    sizeMB: 240,
+    sizeMB: 294,
     dtype: 'q8',
-    demoNote: 'Prod: same model, q4 — ~120 MB.',
+    demoNote: 'Falls back to YOLOS-small automatically if DETR cannot load.',
   },
 
   DETECTION_FAST: {
@@ -210,3 +212,17 @@ export const MODEL_BY_ID = Object.fromEntries(
 );
 
 export const ALL_MODELS = Object.values(MODELS);
+
+// Models bundled into public/models so first use does not depend on the
+// Hugging Face Hub being reachable from the browser.
+export const LOCAL_MODEL_PATH = '/models/';
+
+export const BUNDLED_MODEL_IDS = new Set([
+  MODELS.DETECTION.id,
+  MODELS.DETECTION_FAST.id,
+  MODELS.CAPTION_TINY.id,
+]);
+
+export function isBundledModel(modelId) {
+  return BUNDLED_MODEL_IDS.has(modelId);
+}

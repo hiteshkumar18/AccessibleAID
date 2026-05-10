@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { MODEL_BY_ID } from '../config/models.js';
+import {
+  MODELS,
+  MODEL_BY_ID,
+  LOCAL_MODEL_PATH,
+  isBundledModel,
+} from '../config/models.js';
 
 /**
  * Lazy loader / cache for transformers.js pipelines AND vision-language
@@ -56,6 +61,13 @@ export function useModelLoader() {
 
       const modelMeta = MODEL_BY_ID[model];
       const displayName = modelMeta?.shortName || prettyTaskName(task);
+      const fallbackCandidates =
+        task === 'object-detection' && model === MODELS.DETECTION.id
+          ? [
+              { model, dtype: options.dtype },
+              { model: MODELS.DETECTION_FAST.id, dtype: MODELS.DETECTION_FAST.dtype },
+            ]
+          : [{ model, dtype: options.dtype }];
 
       const updateLoaderUI = () => {
         const files = Array.from(fileProgress.entries());
@@ -91,6 +103,7 @@ export function useModelLoader() {
       try {
         const tjs = await import('@huggingface/transformers');
         const { pipeline, env } = tjs;
+        env.localModelPath = LOCAL_MODEL_PATH;
         env.allowRemoteModels = true;
         env.useBrowserCache = true;
 
@@ -197,16 +210,47 @@ export function useModelLoader() {
           }
         };
 
-        const pipe = await pipeline(task, model, {
-          device,
-          dtype: options.dtype, // undefined → transformers.js picks best
-          progress_callback,
-        });
+        let pipe;
+        let loadedModel = model;
+        let lastError = null;
+
+        for (const candidate of fallbackCandidates) {
+          try {
+            const useBundledFilesOnly = isBundledModel(candidate.model);
+            env.allowLocalModels = useBundledFilesOnly;
+            pipe = await pipeline(task, candidate.model, {
+              device,
+              dtype: candidate.dtype, // undefined → transformers.js picks best
+              progress_callback,
+              local_files_only: useBundledFilesOnly,
+            });
+            loadedModel = candidate.model;
+            break;
+          } catch (candidateError) {
+            lastError = candidateError;
+            if (candidate.model === model || fallbackCandidates.length === 1) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[Lumyn] failed to load ${candidate.model}; ${
+                  fallbackCandidates.length > 1 ? 'trying detector fallback…' : 'no fallback available.'
+                }`,
+                candidateError
+              );
+            }
+          }
+        }
+
+        if (!pipe) throw lastError || new Error(`Could not load ${displayName}.`);
+
         PIPELINE_CACHE.set(cacheKey, pipe);
+        if (loadedModel !== model) {
+          const resolvedCacheKey = `${task}::${loadedModel}::${MODELS.DETECTION_FAST.dtype || 'auto'}`;
+          PIPELINE_CACHE.set(resolvedCacheKey, pipe);
+        }
         clearLoader(baseLoaderKey);
         // eslint-disable-next-line no-console
         console.log(
-          `%c🚀 Ready      %c ${displayName} (${model}) is loaded and cached`,
+          `%c🚀 Ready      %c ${displayName} (${loadedModel}) is loaded and cached`,
           'background:#14532d;color:#4ade80;font-weight:bold;padding:2px 6px;border-radius:4px;',
           'color:#4ade80;font-weight:bold;'
         );
@@ -226,7 +270,15 @@ export function useModelLoader() {
         // failure mode (404 model id, OOM, fetch abort, etc.).
         const raw = `${err?.name || 'Error'}: ${err?.message || err}`;
         let friendly;
-        if (/404|not found|Could not find/i.test(raw)) {
+        if (/local_files_only=true|file was not found locally|missing locally/i.test(raw)) {
+          friendly =
+            `Bundled files for ${displayName} are missing or incomplete. ` +
+            `Rebuild the app and make sure /public/models contains that model.`;
+        } else if (/Unexpected token '<'|<!doctype|not valid JSON/i.test(raw)) {
+          friendly =
+            `${displayName} received app HTML instead of model JSON. ` +
+            `Hard-refresh or restart the dev server so the latest loader is used.`;
+        } else if (/404|not found|Could not find/i.test(raw)) {
           friendly =
             `Model "${model}" was not found on Hugging Face. ` +
             `Check the model id in src/config/models.js.`;
@@ -239,6 +291,14 @@ export function useModelLoader() {
             `Not enough memory to load ${displayName}. ` +
             `Try the smaller variant (set MODELS.CAPTION = MODELS.CAPTION_TINY) ` +
             `or close other tabs and retry.`;
+        } else if (
+          task === 'object-detection' &&
+          model === MODELS.DETECTION.id
+        ) {
+          friendly =
+            `Could not load ${displayName}. The app also tried the smaller ` +
+            `${MODELS.DETECTION_FAST.shortName} fallback, but that failed too. ` +
+            `Check your connection and retry.`;
         } else {
           friendly =
             `Could not load ${displayName}. ${err?.message || ''} ` +
@@ -279,6 +339,13 @@ export function useModelLoader() {
           : modelOrEntry;
       const model = entry.id;
       const dtype = entry.dtype;
+      const fallbackCandidates =
+        model === MODELS.CAPTION.id
+          ? [
+              entry,
+              MODELS.CAPTION_TINY,
+            ]
+          : [entry];
 
       const desired = state.prefs.backend || 'auto';
       let device = 'wasm';
@@ -328,8 +395,34 @@ export function useModelLoader() {
 
       try {
         const tjs = await import('@huggingface/transformers');
-        const { AutoProcessor, AutoModelForImageTextToText, RawImage, env } = tjs;
+        const { RawImage, env } = tjs;
+        const ProcessorCtor =
+          tjs.AutoProcessor ||
+          tjs.SmolVLMProcessor ||
+          tjs.Idefics3Processor ||
+          tjs.Processor;
+        const ModelCtor =
+          tjs.AutoModelForImageTextToText ||
+          tjs.AutoModelForVision2Seq ||
+          tjs.SmolVLMForConditionalGeneration ||
+          tjs.Idefics3ForConditionalGeneration;
+
+        if (
+          typeof ProcessorCtor?.from_pretrained !== 'function' ||
+          typeof ModelCtor?.from_pretrained !== 'function'
+        ) {
+          const available = Object.keys(tjs)
+            .filter((k) => /Processor|SmolVLM|Vision2Seq|ImageTextToText/.test(k))
+            .sort()
+            .join(', ');
+          throw new Error(
+            `Transformers VLM constructors are unavailable. Clear cached site data and reload. ` +
+            `Available exports: ${available || 'none'}`
+          );
+        }
+
         env.allowRemoteModels = true;
+        env.localModelPath = LOCAL_MODEL_PATH;
         env.useBrowserCache = true;
         try {
           if (env?.backends?.onnx?.wasm) {
@@ -375,14 +468,63 @@ export function useModelLoader() {
           }
         };
 
-        const processor = await AutoProcessor.from_pretrained(model, {
-          progress_callback,
-        });
-        const innerModel = await AutoModelForImageTextToText.from_pretrained(model, {
-          dtype,
-          device,
-          progress_callback,
-        });
+        let processor;
+        let innerModel;
+        let loadedEntry = entry;
+        let lastError = null;
+
+        for (const candidate of fallbackCandidates) {
+          try {
+            const useBundledFilesOnly = isBundledModel(candidate.id);
+            env.allowLocalModels = useBundledFilesOnly;
+
+            const ctorPairs = buildVlmCtorPairs(tjs, candidate.id);
+            let pairError = null;
+
+            for (const { processorCtor, modelCtor } of ctorPairs) {
+              try {
+                processor = await processorCtor.from_pretrained(candidate.id, {
+                  progress_callback,
+                  local_files_only: useBundledFilesOnly,
+                });
+                innerModel = await modelCtor.from_pretrained(candidate.id, {
+                  dtype: candidate.dtype,
+                  device,
+                  progress_callback,
+                  local_files_only: useBundledFilesOnly,
+                });
+                pairError = null;
+                break;
+              } catch (ctorError) {
+                pairError = ctorError;
+                processor = null;
+                innerModel = null;
+              }
+            }
+
+            if (!processor || !innerModel) {
+              throw pairError || new Error(`Could not load ${candidate.id}.`);
+            }
+
+            loadedEntry = candidate;
+            break;
+          } catch (candidateError) {
+            lastError = candidateError;
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[Lumyn] failed to load VLM ${candidate.id}; ${
+                fallbackCandidates.length > 1 && candidate.id === model
+                  ? 'trying smaller VLM fallback…'
+                  : 'no further VLM fallback available.'
+              }`,
+              candidateError
+            );
+          }
+        }
+
+        if (!processor || !innerModel) {
+          throw lastError || new Error(`Could not load ${displayName}.`);
+        }
 
         async function generate(messages, generationOpts = {}) {
           const imageUrls = [];
@@ -433,12 +575,16 @@ export function useModelLoader() {
           return (decoded?.[0] || '').trim();
         }
 
-        const vlm = { processor, model: innerModel, generate, modelId: model };
+        const vlm = { processor, model: innerModel, generate, modelId: loadedEntry.id };
         PIPELINE_CACHE.set(cacheKey, vlm);
+        if (loadedEntry.id !== model) {
+          const resolvedCacheKey = `vlm::${loadedEntry.id}::${stableStringify(loadedEntry.dtype)}::${device}`;
+          PIPELINE_CACHE.set(resolvedCacheKey, vlm);
+        }
         clearLoader(baseLoaderKey);
         // eslint-disable-next-line no-console
         console.log(
-          `%c🚀 Ready      %c ${displayName} (${model}) is loaded and cached`,
+          `%c🚀 Ready      %c ${displayName} (${loadedEntry.id}) is loaded and cached`,
           'background:#14532d;color:#4ade80;font-weight:bold;padding:2px 6px;border-radius:4px;',
           'color:#4ade80;font-weight:bold;'
         );
@@ -454,16 +600,39 @@ export function useModelLoader() {
         );
         const raw = `${err?.name || 'Error'}: ${err?.message || err}`;
         let friendly;
-        if (/404|not found|Could not find/i.test(raw)) {
+        if (/local_files_only=true|file was not found locally|missing locally/i.test(raw)) {
+          friendly =
+            `Bundled files for ${displayName} are missing or incomplete. ` +
+            `Rebuild the app and make sure /public/models contains that model.`;
+        } else if (/Unexpected token '<'|<!doctype|not valid JSON/i.test(raw)) {
+          friendly =
+            `${displayName} received app HTML instead of model JSON. ` +
+            `Hard-refresh or restart the dev server so the latest loader is used.`;
+        } else if (/404|not found|Could not find/i.test(raw)) {
           friendly = `Model "${model}" was not found on Hugging Face.`;
+        } else if (/constructors are unavailable|cached site data/i.test(raw)) {
+          friendly =
+            `${displayName} assets are out of sync. Clear site data or hard-refresh, then retry.`;
+        } else if (/Unsupported model type:\s*idefics3/i.test(raw)) {
+          friendly =
+            `${displayName} hit an incompatible auto-loader path for SmolVLM. ` +
+            `Hard-refresh or restart the app and retry.`;
         } else if (/network|fetch|abort|timeout/i.test(raw)) {
           friendly =
-            `Network error while downloading ${displayName}. ` +
-            `Check your connection on first load.`;
+            model === MODELS.CAPTION.id
+              ? `Network error while downloading ${displayName}. ` +
+                `The app also tried the smaller ${MODELS.CAPTION_TINY.shortName} fallback. ` +
+                `Check your connection on first load, then retry.`
+              : `Network error while downloading ${displayName}. ` +
+                `Check your connection on first load.`;
         } else if (/memory|allocation|RuntimeError|wasm/i.test(raw)) {
           friendly =
-            `Not enough memory to load ${displayName}. Close other tabs and retry, ` +
-            `or switch to a smaller VLM (CAPTION_TINY).`;
+            model === MODELS.CAPTION.id
+              ? `Not enough memory to load ${displayName}. ` +
+                `The app will work best with the smaller ${MODELS.CAPTION_TINY.shortName} fallback; ` +
+                `close other tabs and retry.`
+              : `Not enough memory to load ${displayName}. Close other tabs and retry, ` +
+                `or switch to a smaller VLM (CAPTION_TINY).`;
         } else {
           friendly = `Could not load ${displayName}. ${err?.message || ''}`;
         }
@@ -519,4 +688,45 @@ function humanBytes(n) {
     i++;
   }
   return `${n.toFixed(n < 10 ? 1 : 0)} ${u[i]}`;
+}
+
+function buildVlmCtorPairs(tjs, modelId) {
+  const genericPairs = [
+    {
+      processorCtor: tjs.AutoProcessor,
+      modelCtor: tjs.AutoModelForImageTextToText,
+    },
+    {
+      processorCtor: tjs.AutoProcessor,
+      modelCtor: tjs.AutoModelForVision2Seq,
+    },
+  ];
+
+  const smolPairs = /SmolVLM/i.test(modelId)
+    ? [
+        {
+          processorCtor: tjs.SmolVLMProcessor,
+          modelCtor: tjs.SmolVLMForConditionalGeneration,
+        },
+        {
+          processorCtor: tjs.Idefics3Processor,
+          modelCtor: tjs.Idefics3ForConditionalGeneration,
+        },
+        ...genericPairs,
+      ]
+    : genericPairs;
+
+  const seen = new Set();
+  return smolPairs.filter(({ processorCtor, modelCtor }) => {
+    if (
+      typeof processorCtor?.from_pretrained !== 'function' ||
+      typeof modelCtor?.from_pretrained !== 'function'
+    ) {
+      return false;
+    }
+    const key = `${processorCtor.name}::${modelCtor.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

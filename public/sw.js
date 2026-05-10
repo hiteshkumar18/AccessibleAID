@@ -1,10 +1,11 @@
 /* AccessibleAID service worker.
  *
  * Strategy:
- *   • App shell (HTML / JS / CSS / icons) → cache-first with network refresh.
+ *   • App shell HTML / JS / CSS → network-first with cache fallback.
+ *   • Icons and manifest → stale-while-revalidate.
  *   • Hugging Face model files → cache-first with very long TTL — these are
  *     immutable model weights so they're safe to keep forever.
- *   • Everything else → network-first, fall back to cache.
+ *   • Other same-origin GET requests → stale-while-revalidate.
  *
  * The transformers.js library *also* caches via IndexedDB, so models cache
  * twice. That's intentional — the SW layer makes installs feel instant on
@@ -14,7 +15,7 @@
 // the next service-worker activation. We bump it whenever the model registry
 // in src/config/models.js changes so a stale / broken model id (e.g. a
 // previous 404 response from a non-existent repo) cannot stick around.
-const VERSION = 'v2-vlm';
+const VERSION = 'v6-vlm-loader-fix';
 const SHELL_CACHE = `aaid-shell-${VERSION}`;
 const MODEL_CACHE = `aaid-models-${VERSION}`;
 
@@ -61,6 +62,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.origin === self.location.origin) {
+    if (
+      req.mode === 'navigate' ||
+      url.pathname === '/' ||
+      url.pathname.endsWith('.html') ||
+      url.pathname.startsWith('/assets/') ||
+      url.pathname.endsWith('.js') ||
+      url.pathname.endsWith('.css')
+    ) {
+      event.respondWith(networkFirst(req, SHELL_CACHE));
+      return;
+    }
     event.respondWith(staleWhileRevalidate(req, SHELL_CACHE));
   }
 });
@@ -74,6 +86,18 @@ async function cacheFirst(req, cacheName) {
     if (resp && resp.status === 200) cache.put(req, resp.clone()).catch(() => {});
     return resp;
   } catch (e) {
+    return cached || Response.error();
+  }
+}
+
+async function networkFirst(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const resp = await fetch(req);
+    if (resp && resp.status === 200) cache.put(req, resp.clone()).catch(() => {});
+    return resp;
+  } catch (e) {
+    const cached = await cache.match(req);
     return cached || Response.error();
   }
 }

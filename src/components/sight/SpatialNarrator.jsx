@@ -6,7 +6,7 @@ import { useSpeech } from '../../hooks/useSpeech.js';
 import { vibrate } from '../../utils/haptics.js';
 import { MODELS } from '../../config/models.js';
 
-const DETECTOR = MODELS.DETECTION.id;  // Xenova/detr-resnet-101
+const DETECTOR = MODELS.DETECTION.id;  // Xenova/detr-resnet-50
 const DEPTH = MODELS.DEPTH.id;         // onnx-community/depth-anything-v2-base
 
 /**
@@ -154,7 +154,7 @@ export function SpatialNarrator() {
         title="What's around you"
         text={narrationText}
         loading={busy}
-        meta="DETR-ResNet-101 + Depth-Anything-v2 Base"
+        meta={`${MODELS.DETECTION.name} + ${MODELS.DEPTH.name}`}
         autoSpeak={false}
       >
         {imageUrl && boxes.length > 0 && (
