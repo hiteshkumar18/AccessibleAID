@@ -8,6 +8,7 @@ import { useModelLoader } from '../../hooks/useModelLoader.js';
 import { ModelLoadingBadge } from '../shared/PrivacyBadge.jsx';
 import { PrivacyBadge } from '../shared/PrivacyBadge.jsx';
 import { MODELS } from '../../config/models.js';
+import { useSpeech } from '../../hooks/useSpeech.js';
 
 const LLM = MODELS.SUMMARIZE.id;
 const TASK = MODELS.SUMMARIZE.task;
@@ -16,6 +17,7 @@ export function SimplifyMode() {
   const navigate = useNavigate();
   const { remember, state } = useApp();
   const { loadPipeline } = useModelLoader();
+  const { speak } = useSpeech();
   const [original, setOriginal] = useState('');
   const [simplified, setSimplified] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export function SimplifyMode() {
       const result = await summarize(text, maxLen, minLen);
       setSimplified(result);
       remember({ lastSimplified: result });
+      speak(result);
     } catch (e) {
       setError(
         (e?.message || 'Could not simplify the text.') +

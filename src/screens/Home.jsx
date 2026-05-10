@@ -2,13 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
-  Camera, AlertTriangle, Users, WifiOff, MapPin,
-  Clock, TrendingUp, Shield, Sparkles, Settings,
+  Camera, Clock, TrendingUp, Shield, Sparkles, Settings,
 } from 'lucide-react';
 import {
   BrainAccessibilityIcon, WorldEyeIcon, EmergencyShieldIcon,
   NavigationCompassIcon, CaptionBubbleIcon, SignHandIcon,
-  FamilyGroupIcon, AIAgentIcon, MedicalPulseIcon,
+  FamilyGroupIcon, AIAgentIcon,
 } from '../components/icons/LumynIcons.jsx';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
 import { useLumyn } from '../context/LumynContext.jsx';
@@ -105,7 +104,7 @@ export default function Home() {
                     </h3>
                     <p className="text-white/90 text-sm mt-0.5">
                       {state.online
-                        ? 'Accessibility AI active · Offline mode ready · Emergency systems online'
+                        ? 'Accessibility AI active'
                         : 'On-device AI running · No internet required · Emergency guidance available'}
                     </p>
                   </div>
@@ -114,13 +113,7 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* Status grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-              <StatusCard icon={<TrendingUp className="w-5 h-5" />} label="Environment" value="Clear" color="emerald" delay={0.3} />
-              <StatusCard icon={<Clock className="w-5 h-5" />} label="AI Response" value="<100ms" color="blue" delay={0.35} />
-              <StatusCard icon={<Shield className="w-5 h-5" />} label="Safety Score" value="98%" color="purple" delay={0.4} />
-              <StatusCard icon={<Sparkles className="w-5 h-5" />} label="AI Agents" value={`${activeAgents > 0 ? activeAgents : '8'} Active`} color="teal" delay={0.45} />
-            </div>
+           
           </div>
         </div>
 
@@ -131,26 +124,10 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4 mb-10">
             <AIActionButton icon={<WorldEyeIcon className="w-7 h-7" />} label="Understand World" onClick={() => navigate('/world-understanding')} gradient="from-[#10B981] to-[#3B82F6]" delay={0.55} />
             <AIActionButton icon={<Camera className="w-7 h-7" />} label="Scene Camera" onClick={() => navigate('/scene-camera')} gradient="from-[#3B82F6] to-[#14B8A6]" delay={0.6} />
-            <AIActionButton icon={<NavigationCompassIcon className="w-7 h-7" />} label="Navigate" onClick={() => navigate('/navigation')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.65} />
+            {/* <AIActionButton icon={<NavigationCompassIcon className="w-7 h-7" />} label="Navigate" onClick={() => navigate('/navigation')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.65} /> */}
             <AIActionButton icon={<CaptionBubbleIcon className="w-7 h-7" />} label="Live Captions" onClick={() => navigate('/live-captioning')} gradient="from-[#14B8A6] to-[#3B82F6]" delay={0.7} />
             <AIActionButton icon={<SignHandIcon className="w-7 h-7" />} label="Sign Language" onClick={() => navigate('/sign-language')} gradient="from-[#10B981] to-[#14B8A6]" delay={0.75} />
             <AIActionButton icon={<BrainAccessibilityIcon className="w-7 h-7" />} label="Simplify Info" onClick={() => navigate('/simplify')} gradient="from-[#3B82F6] to-[#10B981]" delay={0.8} />
-          </div>
-
-          {/* Emergency & Safety */}
-          <SectionHeader title="Emergency & Safety" delay={0.85} />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-            <EmergencyButton icon={<EmergencyShieldIcon className="w-7 h-7" />} label="Emergency Mode" description="Activate survival AI" onClick={() => navigate('/emergency')} color="emergency" delay={0.9} />
-            <EmergencyButton icon={<FamilyGroupIcon className="w-7 h-7" />} label="Family Safety" description="Coordinate your group" onClick={() => navigate('/family-safety')} color="blue" delay={0.95} />
-            <EmergencyButton icon={<MedicalPulseIcon className="w-7 h-7" />} label="Medical Assistant" description="On-device medical AI" onClick={() => navigate('/medical')} color="red" delay={1.0} />
-          </div>
-
-          {/* Quick access */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
-            <QuickCard icon={<MapPin className="w-5 h-5" />} label="Safe Routes" onClick={() => navigate('/navigation')} delay={1.05} />
-            <QuickCard icon={<AlertTriangle className="w-5 h-5" />} label="Nearby Hazards" badge={state.emergency.hazards.length || undefined} onClick={() => navigate('/world-understanding')} delay={1.1} />
-            <QuickCard icon={<Users className="w-5 h-5" />} label="Community" onClick={() => navigate('/family-safety')} delay={1.15} />
-            <QuickCard icon={<WifiOff className="w-5 h-5" />} label="Offline Mode" onClick={() => navigate('/offline')} delay={1.2} />
           </div>
 
           {/* Privacy indicator */}
