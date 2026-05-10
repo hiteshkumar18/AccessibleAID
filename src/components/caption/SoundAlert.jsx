@@ -3,7 +3,9 @@ import { announce } from '../../utils/a11y.js';
 import { vibrate } from '../../utils/haptics.js';
 import { useModelLoader } from '../../hooks/useModelLoader.js';
 
-const CLASSIFIER = 'Xenova/ast-finetuned-audioset-10-10-0.4593';
+import { MODELS } from '../../config/models.js';
+
+const CLASSIFIER = MODELS.SOUND.id;
 
 // Classes we deliberately surface. AudioSet has ~500 classes — these are the
 // ones a deaf user actually wants to know about.

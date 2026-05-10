@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, MapPin, Navigation as NavIcon, AlertCircle, CheckCircle, Wheelchair, Volume2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Navigation as NavIcon, AlertCircle, CheckCircle, Accessibility, Volume2 } from 'lucide-react';
 import { useLumyn } from '../context/LumynContext.jsx';
 import { useSpeech } from '../hooks/useSpeech.js';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
@@ -69,8 +69,8 @@ export default function Navigation() {
 
         {wheelchairMode && (
           <div className="mt-3 flex items-center gap-2 text-[#10B981] text-sm bg-[#10B981]/10 px-3 py-2 rounded-xl border border-[#10B981]/20">
-            <Wheelchair className="w-4 h-4" />
-            <span>Wheelchair-accessible routes only</span>
+            <Accessibility className="w-4 h-4" />
+            <span>Accessibility-accessible routes only</span>
           </div>
         )}
       </div>
@@ -152,7 +152,7 @@ export default function Navigation() {
               <div className="flex-1 text-left">
                 <p className={`text-sm font-medium ${i === activeStep ? 'text-[#0F172A]' : 'text-[#475569]'}`}>{s.instruction}</p>
               </div>
-              {s.accessible && <Wheelchair className="w-4 h-4 text-[#10B981] flex-shrink-0" />}
+              {s.accessible && <Accessibility className="w-4 h-4 text-[#10B981] flex-shrink-0" />}
             </motion.button>
           ))}
         </div>

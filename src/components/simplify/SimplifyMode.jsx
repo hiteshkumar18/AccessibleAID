@@ -4,6 +4,7 @@ import { SimplifiedOutput } from './SimplifiedOutput.jsx';
 import { FollowUp } from './FollowUp.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useModelLoader } from '../../hooks/useModelLoader.js';
+import { MODELS } from '../../config/models.js';
 
 // distilbart-cnn-6-6 (Apache 2.0, ~150 MB) running the `summarization`
 // pipeline. Why this combo over the alternatives:
@@ -21,8 +22,8 @@ import { useModelLoader } from '../../hooks/useModelLoader.js';
 //   - 'Xenova/Qwen2.5-0.5B-Instruct'            (Apache 2.0, ~350MB, chat)
 //   - 'HuggingFaceTB/SmolLM2-360M-Instruct'     (Apache 2.0, ~200MB, chat)
 //   - 'onnx-community/Qwen2.5-1.5B-Instruct'    (Apache 2.0, ~1GB, WebGPU)
-const LLM = 'Xenova/distilbart-cnn-6-6';
-const TASK = 'summarization';
+const LLM = MODELS.SUMMARIZE.id;
+const TASK = MODELS.SUMMARIZE.task;
 
 export function SimplifyMode() {
   const { setMode, remember, state } = useApp();

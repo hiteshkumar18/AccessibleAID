@@ -6,7 +6,9 @@ import { useRAG } from '../../hooks/useRAG.js';
 import { useSpeech } from '../../hooks/useSpeech.js';
 import { fmtConfidence, announce } from '../../utils/a11y.js';
 
-const VISION_MODEL = 'Xenova/vit-gpt2-image-captioning';
+import { MODELS } from '../../config/models.js';
+
+const VISION_MODEL = MODELS.CAPTION.id;
 
 /**
  * 1. Caption the photo of the pill / bottle to a descriptive string.

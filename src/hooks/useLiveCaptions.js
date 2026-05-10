@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useModelLoader } from './useModelLoader.js';
 import { useLumyn } from '../context/LumynContext.jsx';
 
-const WHISPER_MODEL = 'Xenova/whisper-tiny.en';
+import { MODELS } from '../config/models.js';
+
+const WHISPER_MODEL = MODELS.WHISPER.id;
 const EMOTION_INDICATORS = [
   { words: ['amazing', 'fantastic', 'wonderful', 'great', 'excellent', 'love', 'happy'], emotion: 'excited', emoji: '😄' },
   { words: ['question', 'how', 'why', 'what', 'when', 'where', '?'], emotion: 'curious', emoji: '🤔' },

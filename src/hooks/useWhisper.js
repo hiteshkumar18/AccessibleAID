@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useModelLoader } from './useModelLoader.js';
+import { MODELS } from '../config/models.js';
 
-const MODEL = 'Xenova/whisper-tiny.en';
+const MODEL = MODELS.WHISPER.id;
 
 /**
  * Truly on-device speech-to-text via Whisper.
@@ -104,7 +105,7 @@ export function useWhisper({ chunkMs = 5000, language = 'english' } = {}) {
         pipeRef.current = await loadPipeline(
           'automatic-speech-recognition',
           MODEL,
-          { dtype: 'q8' }
+          { dtype: MODELS.WHISPER.dtype }
         );
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -178,7 +179,7 @@ export function useWhisper({ chunkMs = 5000, language = 'english' } = {}) {
         pipeRef.current = await loadPipeline(
           'automatic-speech-recognition',
           MODEL,
-          { dtype: 'q8' }
+          { dtype: MODELS.WHISPER.dtype }
         );
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

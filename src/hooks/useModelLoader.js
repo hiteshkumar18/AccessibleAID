@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext.jsx';
+import { MODEL_BY_ID } from '../config/models.js';
 
 /**
  * Lazy loader / cache for transformers.js pipelines.
@@ -47,13 +48,16 @@ export function useModelLoader() {
       // confused bar.
       const fileProgress = new Map(); // filename -> {progress, loaded, total}
 
+      const modelMeta = MODEL_BY_ID[model];
+      const displayName = modelMeta?.shortName || prettyTaskName(task);
+
       const updateLoaderUI = () => {
         const files = Array.from(fileProgress.entries());
         if (!files.length) {
           setLoader(baseLoaderKey, {
             loading: true,
             progress: 0,
-            label: `Connecting to ${prettyTaskName(task)}…`,
+            label: `Loading ${displayName}…`,
           });
           return;
         }
@@ -71,7 +75,7 @@ export function useModelLoader() {
         setLoader(baseLoaderKey, {
           loading: true,
           progress: Math.round(avg),
-          label: `Downloading ${prettyTaskName(task)} ${Math.round(avg)}%`,
+          label: displayName,
           detail: lines,
         });
       };
@@ -130,11 +134,40 @@ export function useModelLoader() {
           }
         }
 
+        // ─── Console log helpers ──────────────────────────────────────────
+        const logStyle = {
+          header:  'background:#1e3a5f;color:#60a5fa;font-weight:bold;padding:2px 6px;border-radius:4px;',
+          info:    'background:#14532d;color:#4ade80;padding:2px 6px;border-radius:4px;',
+          progress:'background:#1e1b4b;color:#a78bfa;padding:2px 6px;border-radius:4px;',
+          done:    'background:#14532d;color:#86efac;font-weight:bold;padding:2px 6px;border-radius:4px;',
+          error:   'background:#450a0a;color:#f87171;font-weight:bold;padding:2px 6px;border-radius:4px;',
+        };
+        // eslint-disable-next-line no-console
+        console.log(
+          `%c🤖 Lumyn AI  %c Loading: ${displayName} (${model}) — device: ${device}`,
+          logStyle.header, 'color:#94a3b8;',
+          modelMeta ? `| ~${modelMeta.sizeMB} MB` : ''
+        );
+        if (modelMeta?.demoNote) {
+          // eslint-disable-next-line no-console
+          console.log(`%c📱 Prod note  %c ${modelMeta.demoNote}`, logStyle.info, 'color:#64748b;');
+        }
+
         const progress_callback = (p) => {
           // p ~ { status, name, progress, loaded, total, file }
           if (!p) return;
           const fileName = p.file || p.name || 'model';
-          if (p.status === 'progress' || p.status === 'download') {
+
+          if (p.status === 'initiate') {
+            fileProgress.set(fileName, { progress: 0, loaded: 0, total: 0 });
+            // eslint-disable-next-line no-console
+            console.log(
+              `%c⬇  Fetch     %c ${fileName}`,
+              logStyle.progress, 'color:#cbd5e1;font-family:monospace;'
+            );
+            updateLoaderUI();
+
+          } else if (p.status === 'progress' || p.status === 'download') {
             const pct =
               typeof p.progress === 'number'
                 ? p.progress
@@ -146,18 +179,25 @@ export function useModelLoader() {
               loaded: p.loaded || 0,
               total: p.total || 0,
             });
+            // Throttle: log only at 25 / 50 / 75 %
+            const rounded = Math.round(pct);
+            if (rounded === 25 || rounded === 50 || rounded === 75) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `%c${rounded.toString().padStart(3)}%       %c ${fileName}  ${humanBytes(p.loaded || 0)} / ${humanBytes(p.total || 0)}`,
+                logStyle.progress, 'color:#94a3b8;font-family:monospace;'
+              );
+            }
             updateLoaderUI();
+
           } else if (p.status === 'done') {
             fileProgress.set(fileName, { progress: 100, loaded: p.total || 0, total: p.total || 0 });
+            // eslint-disable-next-line no-console
+            console.log(
+              `%c✓  Cached    %c ${fileName}  (${humanBytes(p.total || 0)})`,
+              logStyle.done, 'color:#86efac;font-family:monospace;'
+            );
             updateLoaderUI();
-          } else if (p.status === 'initiate') {
-            fileProgress.set(fileName, { progress: 0, loaded: 0, total: 0 });
-            updateLoaderUI();
-          }
-          // Useful for hackathon debugging in DevTools console.
-          // eslint-disable-next-line no-console
-          if (typeof console !== 'undefined' && console.debug) {
-            console.debug('[AccessibleAID model]', p);
           }
         };
 
@@ -168,11 +208,22 @@ export function useModelLoader() {
         });
         PIPELINE_CACHE.set(cacheKey, pipe);
         clearLoader(baseLoaderKey);
+        // eslint-disable-next-line no-console
+        console.log(
+          `%c🚀 Ready      %c ${displayName} (${model}) is loaded and cached`,
+          'background:#14532d;color:#4ade80;font-weight:bold;padding:2px 6px;border-radius:4px;',
+          'color:#4ade80;font-weight:bold;'
+        );
         return pipe;
       } catch (err) {
         clearLoader(baseLoaderKey);
         // eslint-disable-next-line no-console
-        console.error('[AccessibleAID] model load failed', err);
+        console.error(
+          `%c✖ Failed      %c ${displayName} (${model})\n`,
+          'background:#450a0a;color:#f87171;font-weight:bold;padding:2px 6px;border-radius:4px;',
+          'color:#f87171;',
+          err
+        );
         const friendly =
           'Could not load the AI model. Check your connection on first load — after that the app works offline. (Open DevTools → Console for details.)';
         const wrapped = new Error(friendly);

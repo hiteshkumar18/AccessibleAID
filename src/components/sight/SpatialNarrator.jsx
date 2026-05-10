@@ -4,9 +4,10 @@ import { ResultCard } from '../shared/ResultCard.jsx';
 import { useModelLoader } from '../../hooks/useModelLoader.js';
 import { useSpeech } from '../../hooks/useSpeech.js';
 import { vibrate } from '../../utils/haptics.js';
+import { MODELS } from '../../config/models.js';
 
-const DETECTOR = 'Xenova/detr-resnet-50';
-const DEPTH = 'onnx-community/depth-anything-v2-small';
+const DETECTOR = MODELS.DETECTION.id;  // Xenova/yolos-small
+const DEPTH = MODELS.DEPTH.id;         // Xenova/depth-anything-v2-small-hf
 
 /**
  * "Where am I, what's around me, how far is it?"

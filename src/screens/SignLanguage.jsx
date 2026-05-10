@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Camera, Volume2, Hand, Type, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Camera, Volume2, Hand, Type, RefreshCw, X } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera.js';
 import { useSpeech } from '../hooks/useSpeech.js';
 import { PrivacyBadge } from '../components/shared/PrivacyBadge.jsx';
@@ -81,42 +81,92 @@ export default function SignLanguage() {
       <div className="px-6 mt-6 space-y-4">
         {mode === 'translate' && (
           <>
-            {/* Camera for sign detection */}
-            <div className="relative bg-[#1E293B] rounded-2xl overflow-hidden h-56 shadow-xl">
-              <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover opacity-80 scale-x-[-1]" />
-              {!active && (
-                <div className="absolute inset-0 flex items-center justify-center flex-col gap-3 text-center px-4">
-                  <Hand className="w-12 h-12 text-[#14B8A6]/50" />
-                  <p className="text-white/60 text-sm">Camera off — tap below to start</p>
-                </div>
-              )}
-              {detecting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <div className="bg-black/70 backdrop-blur-xl rounded-2xl px-5 py-3 flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
-                    <span className="text-white text-sm">Detecting sign…</span>
-                  </div>
-                </div>
-              )}
-              {detectedSign && (
-                <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-r from-[#10B981]/90 to-[#14B8A6]/90 backdrop-blur-xl rounded-xl p-3 border border-white/20">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{detectedSign.sign}</span>
-                    <div>
-                      <p className="text-white font-bold">{detectedSign.phrase}</p>
-                      <p className="text-white/70 text-xs">{detectedSign.description}</p>
+            {/* Full-screen camera when active */}
+            <AnimatePresence>
+              {active && (
+                <motion.div
+                  key="sign-camera-fs"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-black flex flex-col"
+                >
+                  <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
+
+                  {/* Top bar */}
+                  <div className="relative z-10 flex items-center justify-between px-5 pt-12">
+                    <button onClick={stop} className="w-11 h-11 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
+                      <X className="w-5 h-5 text-white" />
+                    </button>
+                    <div className="bg-black/50 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20">
+                      <span className="text-white/80 text-sm font-medium">Position your hand in frame</span>
                     </div>
+                    <div className="w-11" />
                   </div>
-                </div>
+
+                  {/* Detecting overlay */}
+                  {detecting && (
+                    <div className="absolute inset-0 flex items-center justify-center z-20">
+                      <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
+                        className="bg-black/70 backdrop-blur-xl rounded-2xl px-6 py-4 flex items-center gap-3 border border-white/20">
+                        <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
+                        <span className="text-white font-medium">Detecting sign…</span>
+                      </motion.div>
+                    </div>
+                  )}
+
+                  {/* Result banner */}
+                  {detectedSign && (
+                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                      className="absolute bottom-32 left-4 right-4 z-20 bg-gradient-to-r from-[#10B981]/90 to-[#14B8A6]/90 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+                      <div className="flex items-center gap-4">
+                        <span className="text-5xl">{detectedSign.sign}</span>
+                        <div>
+                          <p className="text-white font-bold text-lg">{detectedSign.phrase}</p>
+                          <p className="text-white/80 text-sm">{detectedSign.description}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Capture button */}
+                  <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-10">
+                    <button onClick={handleStartDetection} disabled={detecting}
+                      className="w-20 h-20 rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-2xl disabled:opacity-50">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#10B981] to-[#14B8A6] flex items-center justify-center">
+                        <Hand className="w-7 h-7 text-white" />
+                      </div>
+                    </button>
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
+
+            {/* Hidden video ref when overlay not shown */}
+            {!active && <video ref={videoRef} playsInline muted className="sr-only" aria-hidden="true" />}
+
+            {/* Compact trigger */}
+            {detectedSign && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-3 p-4 bg-gradient-to-r from-[#10B981]/10 to-[#14B8A6]/10 rounded-2xl border border-[#10B981]/20">
+                <span className="text-5xl">{detectedSign.sign}</span>
+                <div>
+                  <p className="font-bold text-[#0F172A]">{detectedSign.phrase}</p>
+                  <p className="text-[#475569] text-sm">{detectedSign.description}</p>
+                </div>
+                <button onClick={() => speak(detectedSign.description)} className="ml-auto">
+                  <Volume2 className="w-5 h-5 text-[#3B82F6]" />
+                </button>
+              </motion.div>
+            )}
 
             <button
               onClick={handleStartDetection}
               disabled={detecting}
               className="w-full py-4 bg-gradient-to-r from-[#10B981] to-[#14B8A6] text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {detecting ? <><RefreshCw className="w-5 h-5 animate-spin" />Detecting…</> : <><Camera className="w-5 h-5" />Detect Sign</>}
+              {detecting ? <><RefreshCw className="w-5 h-5 animate-spin" />Detecting…</> : <><Camera className="w-5 h-5" />{detectedSign ? 'Detect Again' : 'Open Camera to Detect'}</>}
             </button>
 
             {/* Text to sign */}

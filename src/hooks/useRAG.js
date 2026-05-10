@@ -3,7 +3,9 @@ import { MEDICATIONS } from '../data/medications.js';
 import { cosineSimilarity, l2Normalize } from '../utils/cosineSimilarity.js';
 import { useModelLoader } from './useModelLoader.js';
 
-const EMBED_MODEL = 'Xenova/all-MiniLM-L6-v2';
+import { MODELS } from '../config/models.js';
+
+const EMBED_MODEL = MODELS.EMBEDDING.id;
 
 /**
  * On-device RAG over the medications knowledge base.

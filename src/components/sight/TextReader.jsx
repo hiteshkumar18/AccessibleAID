@@ -4,8 +4,9 @@ import { ResultCard } from '../shared/ResultCard.jsx';
 import { useModelLoader } from '../../hooks/useModelLoader.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { vibrate } from '../../utils/haptics.js';
+import { MODELS } from '../../config/models.js';
 
-const MODEL = 'Xenova/trocr-small-printed';
+const MODEL = MODELS.OCR.id;
 
 export function TextReader() {
   const { loadPipeline } = useModelLoader();

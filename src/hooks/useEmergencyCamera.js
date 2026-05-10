@@ -4,7 +4,9 @@ import { useLumyn } from '../context/LumynContext.jsx';
 import { captureFrameToDataURL } from '../utils/imageUtils.js';
 import { vibrate } from '../utils/haptics.js';
 
-const DETECTION_MODEL = 'Xenova/detr-resnet-50';
+import { MODELS } from '../config/models.js';
+
+const DETECTION_MODEL = MODELS.DETECTION.id;
 
 const EMERGENCY_HAZARD_MAP = {
   fire: { severity: 'critical', icon: '🔥', label: 'Active Fire', color: 'red' },
@@ -95,12 +97,12 @@ export function useEmergencyCamera() {
           detectionPipeRef.current = await loadPipeline(
             'object-detection',
             DETECTION_MODEL,
-            { dtype: 'q8' }
+            { dtype: MODELS.DETECTION.dtype }
           );
         }
 
         const rawDetections = await detectionPipeRef.current(imageSource, {
-          threshold: 0.35,
+          threshold: 0.50,
         });
 
         const hazards = (Array.isArray(rawDetections) ? rawDetections : [])

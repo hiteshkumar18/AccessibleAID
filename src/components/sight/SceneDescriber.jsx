@@ -4,8 +4,9 @@ import { ResultCard } from '../shared/ResultCard.jsx';
 import { useModelLoader } from '../../hooks/useModelLoader.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { vibrate } from '../../utils/haptics.js';
+import { MODELS } from '../../config/models.js';
 
-const MODEL = 'Xenova/vit-gpt2-image-captioning';
+const MODEL = MODELS.CAPTION.id;
 
 export function SceneDescriber() {
   const { loadPipeline } = useModelLoader();

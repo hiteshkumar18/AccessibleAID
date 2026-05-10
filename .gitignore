@@ -1,0 +1,66 @@
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+
+# ── Vite cache ────────────────────────────────────────────────────────────────
+.vite/
+*.local
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# ── Editor / IDE ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Test / coverage ───────────────────────────────────────────────────────────
+coverage/
+*.lcov
+.nyc_output/
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── PWA / Workbox generated files ─────────────────────────────────────────────
+# public/sw.js is hand-written — only ignore auto-generated Workbox output
+workbox-*.js
+
+# ── ONNX model cache (downloaded at runtime by transformers.js) ───────────────
+public/models/
+.cache/
+
+# ── Claude Code internal worktrees ────────────────────────────────────────────
+.claude/worktrees/

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ChevronRight, Eye, Ear, Move, Brain, MessageSquare, Wheelchair } from 'lucide-react';
+import { ChevronRight, Eye, Ear, Move, Brain, MessageSquare, Accessibility } from 'lucide-react';
 import { useLumyn } from '../context/LumynContext.jsx';
 
 const DISABILITY_OPTIONS = [
@@ -153,7 +153,7 @@ export default function AccessibilityProfile() {
           <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
             wheelchairUser ? 'bg-gradient-to-r from-[#10B981] to-[#14B8A6]' : 'bg-[#F1F5F9]'
           }`}>
-            <Wheelchair className={`w-5 h-5 ${wheelchairUser ? 'text-white' : 'text-[#64748B]'}`} />
+            <Accessibility className={`w-5 h-5 ${wheelchairUser ? 'text-white' : 'text-[#64748B]'}`} />
           </div>
           <div className="flex-1 text-left">
             <p className="font-semibold text-sm text-[#0F172A]">Wheelchair / Mobility Aid User</p>

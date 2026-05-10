@@ -9,6 +9,7 @@ import { useSpeech } from '../hooks/useSpeech.js';
 import { captureFrameToDataURL } from '../utils/imageUtils.js';
 import { PrivacyBadge, ModelLoadingBadge } from '../components/shared/PrivacyBadge.jsx';
 import { useLumyn } from '../context/LumynContext.jsx';
+import { MODELS } from '../config/models.js';
 
 const FIRST_AID_GUIDES = [
   { title: 'CPR', steps: ['Call 911', 'Place heel of hand on center of chest', 'Push hard and fast: 100-120/min', 'Give 2 rescue breaths every 30 compressions'], icon: Heart },
@@ -52,7 +53,7 @@ export default function MedicalAssistant() {
       const dataUrl = captureFrameToDataURL(videoRef.current, 640);
       if (!dataUrl) return;
       try {
-        const pipe = await loadPipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning');
+        const pipe = await loadPipeline(MODELS.CAPTION.task, MODELS.CAPTION.id);
         const out = await pipe(dataUrl);
         const caption = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text;
         if (caption) {
